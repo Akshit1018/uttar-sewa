@@ -1,0 +1,568 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Loader2, Play, ExternalLink, Clock, Heart, HeartIcon, Mic, MicOff, Bot, User, Sparkles, Star } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { useToast } from '../hooks/use-toast';
+import { useFavorites } from '../hooks/useFavorites';
+import { useSearchHistory } from '../hooks/useSearchHistory';
+import { useVoiceSearch } from '../hooks/useVoiceSearch';
+import { useOfflineStorage } from '../hooks/useOfflineStorage';
+import { useDebounce, usePerformanceMonitor } from '../hooks/usePerformance';
+import { notificationService } from '../services/notificationService';
+import { analyticsService } from '../services/analyticsService';
+import { t } from '../utils/translations';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
+const ChatInterface = ({ language }) => {
+  const [query, setQuery] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [suggestedQuestions, setSuggestedQuestions] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  
+  const chatEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const { toast } = useToast();
+  
+  // Custom hooks
+  const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
+  const { addToHistory } = useSearchHistory();
+  const { isOnline, getCachedResults, cacheSearchResults } = useOfflineStorage();
+  const { measureSearchTime } = usePerformanceMonitor();
+  
+  // Voice search
+  const { isListening, isSupported: voiceSupported, startListening, stopListening } = useVoiceSearch(
+    (transcript) => {
+      setQuery(transcript);
+      handleSendMessage(transcript);
+      analyticsService.trackVoiceSearch(0, true, language);
+    },
+    language
+  );
+
+  useEffect(() => {
+    loadSuggestedQuestions();
+    loadStats();
+    analyticsService.trackPageView('chat');
+    
+    // Add welcome message
+    const welcomeMessage = {
+      id: 'welcome',
+      type: 'bot',
+      content: language === 'hi' 
+        ? 'नमस्ते! मैं आपके आध्यात्मिक प्रश्नों का उत्तर देने के लिए यहाँ हूँ। कोई भी प्रश्न पूछें या नीचे दिए गए सुझावों में से चुनें।'
+        : 'Hello! I\'m here to answer your spiritual questions. Ask anything or choose from the suggestions below.',
+      timestamp: new Date(),
+      suggestions: []
+    };
+    setMessages([welcomeMessage]);
+    
+    // Request notification permission
+    notificationService.requestPermission();
+  }, [language]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const loadSuggestedQuestions = async () => {
+    try {
+      const response = await fetch(`${API}/questions/suggested`);
+      const data = await response.json();
+      
+      const apiQuestions = data.suggested_questions || [];
+      const translatedQuestions = t('sampleQuestions', language);
+      
+      const allQuestions = [...translatedQuestions, ...apiQuestions];
+      setSuggestedQuestions(allQuestions.slice(0, 8));
+    } catch (error) {
+      console.error('Error loading suggested questions:', error);
+      setSuggestedQuestions(t('sampleQuestions', language));
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const response = await fetch(`${API}/stats`);
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
+
+  const handleSendMessage = async (messageText = query) => {
+    if (!messageText.trim()) {
+      toast({
+        title: t('enterQuestion', language),
+        description: t('enterQuestionDesc', language),
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const userMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: messageText,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setQuery('');
+    setShowSuggestions(false);
+    setLoading(true);
+
+    const searchStartTime = performance.now();
+
+    try {
+      // Check for cached results first if offline
+      let data = [];
+      
+      if (!isOnline) {
+        const cached = getCachedResults(messageText);
+        if (cached) {
+          data = cached;
+        }
+      }
+
+      if (data.length === 0) {
+        const response = await fetch(`${API}/search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: messageText,
+            limit: 3
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Search failed');
+        }
+
+        data = await response.json();
+        
+        // Cache results for offline use
+        if (data.length > 0 && isOnline) {
+          cacheSearchResults(messageText, data);
+        }
+      }
+
+      const searchTime = measureSearchTime(searchStartTime);
+      
+      // Add to search history
+      addToHistory(messageText, data);
+      
+      // Track analytics
+      analyticsService.trackSearch(messageText, language, data.length, searchTime);
+
+      // Create bot response message
+      const botMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: data.length > 0 
+          ? `${language === 'hi' ? 'मिले' : 'Found'} ${data.length} ${language === 'hi' ? 'परिणाम' : 'results'}:`
+          : language === 'hi' 
+            ? 'खुशी से इस प्रश्न का उत्तर नहीं मिला। कृपया प्रश्न को दूसरे तरीके से पूछें।'
+            : 'I couldn\'t find an answer to this question. Please try rephrasing it.',
+        timestamp: new Date(),
+        results: data,
+        searchTime: Math.round(searchTime)
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+      
+      if (data.length > 0) {
+        notificationService.showSearchCompleteNotification(data.length, language);
+      }
+
+    } catch (error) {
+      console.error('Search error:', error);
+      analyticsService.trackError('search_error', error.message, { query: messageText });
+      
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: language === 'hi' 
+          ? 'खुशी से खोज में कोई समस्या हुई। कृपया बाद में पुनः प्रयास करें।'
+          : 'Sorry, there was an issue with the search. Please try again later.',
+        timestamp: new Date(),
+        isError: true
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: t('searchError', language),
+        description: t('searchErrorDesc', language),
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSuggestedQuestionClick = (question) => {
+    handleSendMessage(question);
+    analyticsService.track('suggested_question_clicked', { question });
+  };
+
+  const handleFavoriteToggle = (result) => {
+    const resultId = `${result.video_id}_${result.start_time}`;
+    
+    if (isFavorite(result)) {
+      removeFromFavorites(resultId);
+      analyticsService.trackFavoriteAction('remove', resultId);
+      toast({
+        title: language === 'hi' ? 'पसंदीदा से हटाया गया' : 'Removed from Favorites',
+        description: language === 'hi' ? 'यह प्रश्न-उत्तर पसंदीदा से हटा दिया गया' : 'This Q&A was removed from favorites',
+      });
+    } else {
+      addToFavorites(result);
+      analyticsService.trackFavoriteAction('add', resultId);
+      toast({
+        title: language === 'hi' ? 'पसंदीदा में जोड़ा गया' : 'Added to Favorites',
+        description: language === 'hi' ? 'यह प्रश्न-उत्तर पसंदीदा में सेव हो गया' : 'This Q&A was saved to favorites',
+      });
+    }
+  };
+
+  const handleVoiceSearch = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const formatTimestamp = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const openVideoAtTimestamp = (videoId, startTime, mobileAppUrl = null) => {
+    const timestampUrl = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
+    const appUrl = mobileAppUrl || `youtube://watch?v=${videoId}&t=${Math.floor(startTime)}s`;
+    
+    analyticsService.trackVideoClick(videoId, startTime, 'chat_result');
+    
+    // Enhanced mobile detection and handling
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Try to open in YouTube app first
+      try {
+        // Create a hidden iframe to trigger the app
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = appUrl;
+        document.body.appendChild(iframe);
+        
+        // For iOS, also try the universal link
+        if (isIOS) {
+          const universalLink = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
+          window.location.href = universalLink;
+        }
+        
+        // Clean up iframe after attempt
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch (e) {
+            // Iframe might already be removed
+          }
+        }, 1500);
+        
+        // Fallback to web version if app doesn't open
+        setTimeout(() => {
+          // Check if we're still on the same page (app didn't open)
+          if (document.hasFocus && document.hasFocus()) {
+            window.open(timestampUrl, '_blank', 'noopener,noreferrer');
+          }
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Error opening YouTube app:', error);
+        // Fallback to web
+        window.open(timestampUrl, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      // Desktop: open in new tab
+      window.open(timestampUrl, '_blank', 'noopener,noreferrer');
+    }
+    
+    // Show user feedback
+    toast({
+      title: language === 'hi' ? 'वीडियो खोली जा रही है' : 'Opening Video',
+      description: `${language === 'hi' ? 'समय:' : 'At:'} ${formatTimestamp(startTime)}`,
+    });
+  };
+
+  const renderMessage = (message) => {
+    const isUser = message.type === 'user';
+    
+    return (
+      <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 fade-in`}>
+        <div className={`max-w-[80%] ${isUser ? 'order-2' : 'order-1'}`}>
+          {/* Avatar */}
+          <div className={`flex items-center gap-2 mb-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              isUser ? 'bg-white/10' : 'bg-gradient-to-br from-blue-500/20 to-purple-500/20'
+            }`}>
+              {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+            </div>
+            <span className="text-xs text-gray-400">
+              {isUser ? (language === 'hi' ? 'आप' : 'You') : (language === 'hi' ? 'सहायक' : 'Assistant')}
+            </span>
+          </div>
+
+          {/* Message Content */}
+          <Card className={`${
+            isUser 
+              ? 'bg-white text-black' 
+              : message.isError 
+                ? 'bg-red-500/10 border-red-500/20' 
+                : 'glass-card'
+          } rounded-2xl`}>
+            <CardContent className="p-4">
+              <p className={`text-sm leading-relaxed ${isUser ? 'text-black' : 'text-white'}`}>
+                {message.content}
+              </p>
+
+              {/* Search Results */}
+              {message.results && message.results.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {message.results.map((result, index) => (
+                    <div key={index} className="bg-white/5 rounded-xl p-3 border border-white/10">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="text-white text-sm font-medium leading-relaxed flex-1 mr-2">
+                          {result.question}
+                        </h4>
+                        <Button
+                          onClick={() => handleFavoriteToggle(result)}
+                          variant="ghost"
+                          size="sm"
+                          className={`p-1 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
+                        >
+                          {isFavorite(result) ? (
+                            <Heart className="w-4 h-4 fill-current" />
+                          ) : (
+                            <HeartIcon className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+
+                      <p className="text-gray-300 text-xs leading-relaxed mb-3">
+                        {result.answer}
+                      </p>
+
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge className="bg-white/10 text-white text-xs px-2 py-1">
+                          {result.video_title.substring(0, 30)}...
+                        </Badge>
+                        <Badge className="bg-white/10 text-white text-xs px-2 py-1">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {formatTimestamp(result.start_time)}
+                        </Badge>
+                        <Badge className="bg-green-500/20 text-green-400 text-xs px-2 py-1">
+                          <Star className="w-3 h-3 mr-1" />
+                          {Math.round(result.confidence_score * 100)}%
+                        </Badge>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => openVideoAtTimestamp(
+                            result.video_id, 
+                            result.start_time,
+                            result.mobile_app_url
+                          )}
+                          className="bg-white text-black hover:bg-gray-100 text-xs px-3 py-2 h-auto flex-1"
+                        >
+                          <Play className="w-3 h-3 mr-1" />
+                          {formatTimestamp(result.start_time)}
+                        </Button>
+                        <Button
+                          onClick={() => window.open(result.youtube_url, '_blank')}
+                          variant="outline"
+                          className="border-white/20 text-gray-300 hover:bg-white/10 text-xs px-3 py-2 h-auto"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Performance info */}
+              {message.searchTime && (
+                <div className="mt-2 text-xs text-gray-500">
+                  {language === 'hi' ? 'खोज समय:' : 'Search time:'} {message.searchTime}ms
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      {/* Header with Stats */}
+      <div className="flex-shrink-0 px-4 py-4 border-b border-white/10 glass-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-white">
+              {language === 'hi' ? 'आध्यात्मिक सहायक' : 'Spiritual Assistant'}
+            </h1>
+            <p className="text-xs text-gray-400">
+              {language === 'hi' ? 'आपके प्रश्नों का उत्तर देने के लिए तैयार' : 'Ready to answer your questions'}
+            </p>
+          </div>
+          <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+        </div>
+
+        {stats && (
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {[
+              { value: stats.total_videos, label: t('totalVideos', language) },
+              { value: stats.total_qa_pairs, label: t('qaTotal', language) },
+              { value: stats.processed_videos, label: t('processedVideos', language) }
+            ].map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-sm font-bold text-white">{stat.value}</div>
+                <div className="text-xs text-gray-400">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Chat Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+        {messages.map(renderMessage)}
+        
+        {loading && (
+          <div className="flex justify-start mb-4">
+            <div className="max-w-[80%]">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <span className="text-xs text-gray-400">
+                  {language === 'hi' ? 'सहायक' : 'Assistant'}
+                </span>
+              </div>
+              <Card className="glass-card rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-white">
+                      {language === 'hi' ? 'खोज रहा है...' : 'Searching...'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+        
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Suggested Questions */}
+      {showSuggestions && suggestedQuestions.length > 0 && (
+        <div className="flex-shrink-0 px-4 py-3 border-t border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-white" />
+            <span className="text-sm font-medium text-white">
+              {t('suggestedQuestions', language)}
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+            {suggestedQuestions.slice(0, 6).map((question, index) => (
+              <button
+                key={index}
+                onClick={() => handleSuggestedQuestionClick(question)}
+                className="flex-shrink-0 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs text-gray-300 hover:text-white transition-colors border border-white/10"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="flex-shrink-0 p-4 border-t border-white/10 glass-card">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Input
+              ref={inputRef}
+              type="text"
+              placeholder={t('searchPlaceholder', language)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              className="bg-white/5 border-white/20 text-white placeholder-gray-400 rounded-xl h-12 pr-12 focus-ring"
+              disabled={loading}
+            />
+            
+            {/* Voice Search Button */}
+            {voiceSupported && (
+              <Button
+                onClick={handleVoiceSearch}
+                variant="ghost"
+                className={`absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 p-0 ${
+                  isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'
+                }`}
+                disabled={loading}
+              >
+                {isListening ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
+              </Button>
+            )}
+          </div>
+
+          <Button
+            onClick={() => handleSendMessage()}
+            disabled={loading || !query.trim()}
+            className="bg-white text-black hover:bg-gray-100 w-12 h-12 p-0 rounded-xl transition-all duration-300"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+          </Button>
+        </div>
+
+        {isListening && (
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+            <span className="text-xs text-white">
+              {language === 'hi' ? 'सुन रहा है...' : 'Listening...'}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ChatInterface;
