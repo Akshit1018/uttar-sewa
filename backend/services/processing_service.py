@@ -14,6 +14,7 @@ from .transcript_ingest import (
     transcribe_with_whisper,
 )
 from .youtube_service import YouTubeService
+from .youtube_ingest import build_library
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,60 @@ class ProcessingService:
         self.llm_service = llm_service or LLMService()
         self.transcribe = transcribe or transcribe_with_whisper
         self.audio_directory = audio_directory or os.getenv("WHISPER_AUDIO_DIR")
+
+    async def ingest_video_list(self, videos: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Store YouTube videos, captions/Whisper segments, and citable Q&A."""
+        rows: List[Dict[str, Any]] = []
+        captions_map: Dict[str, Any] = {}
+        for video in videos:
+            row = dict(video)
+            video_id = str(row.get("video_id") or "").strip()
+            if not video_id:
+                continue
+            if row.get("captions") is None:
+                row["captions"] = await self.youtube_service.get_video_captions(video_id)
+            captions_map[video_id] = row.get("captions")
+            rows.append(row)
+
+        library = build_library(
+            rows,
+            captions_for=lambda vid: captions_map.get(vid),
+            transcribe=self.transcribe,
+            audio_directory=self.audio_directory,
+        )
+
+        for record in library["videos"]:
+            existing = await self.db.videos.find_one({"video_id": record["video_id"]})
+            payload = VideoModel(**record).dict()
+            payload["source"] = record.get("source") or "youtube"
+            if existing:
+                await self.db.videos.update_one({"video_id": record["video_id"]}, {"$set": payload})
+            else:
+                await self.db.videos.insert_one(payload)
+
+        for segment_data in library["segments"]:
+            segment = TranscriptSegment(**segment_data)
+            await self.db.transcript_segments.insert_one(segment.dict())
+
+        for qa_data in library["qa"]:
+            qa = QuestionAnswer(**dict(qa_data))
+            await self.db.question_answers.insert_one(qa.dict())
+
+        return {
+            "ok": True,
+            "source": "youtube",
+            "invented": False,
+            "video_count": len(library["videos"]),
+            "qa_count": len(library["qa"]),
+            "skipped": library["skipped"],
+        }
+
+    async def ingest_from_channel(self, channel_username: str = "bhajanmarg") -> Dict[str, Any]:
+        videos = await self.youtube_service.get_channel_videos(channel_username)
+        for video in videos:
+            if video.get("captions") is None:
+                video["captions"] = await self.youtube_service.get_video_captions(video["video_id"])
+        return await self.ingest_video_list(videos)
         
     async def start_channel_processing(self, channel_url: str = None) -> str:
         """Start incremental processing of unprocessed videos from the channel"""

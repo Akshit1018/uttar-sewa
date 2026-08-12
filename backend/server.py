@@ -21,7 +21,7 @@ from backend.models import (
     VideoModel, TranscriptSegment, QuestionAnswer,
     SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
     AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest,
-    CompanionQuery, ScrapeRequest, VideoMetaRequest
+    CompanionQuery, ScrapeRequest, VideoMetaRequest, IngestRequest
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
@@ -134,6 +134,28 @@ async def start_processing():
     except Exception as e:
         logger.error(f"Error starting processing: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/process/ingest")
+async def ingest_youtube_library(body: IngestRequest):
+    """Fill videos / captions / Q&A from a YouTube payload without the curated fallback."""
+    settings = await _load_control_settings()
+    if not settings.get("processing_enabled"):
+        raise HTTPException(status_code=400, detail="Processing is disabled in control settings")
+    videos = list(body.videos or [])
+    for video_id in body.video_ids or []:
+        videos.append({"video_id": video_id})
+    try:
+        if body.channel and not videos:
+            return await processing_service.ingest_from_channel(body.channel)
+        if not videos:
+            raise HTTPException(status_code=400, detail="Provide videos, video_ids, or channel")
+        return await processing_service.ingest_video_list(videos)
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.error(f"Error ingesting YouTube library: {error}")
+        raise HTTPException(status_code=500, detail=str(error))
 
 @api_router.get("/process/status/{status_id}")
 async def get_processing_status(status_id: str):

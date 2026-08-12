@@ -123,6 +123,18 @@ class ApiClient {
     return await _post('/process/start', {}) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> ingestLibrary({
+    List<Map<String, dynamic>> videos = const [],
+    List<String> videoIds = const [],
+    String? channel,
+  }) async {
+    return await _post('/process/ingest', {
+      'videos': videos,
+      'video_ids': videoIds,
+      if (channel != null) 'channel': channel,
+    }) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> clearProcessing() async {
     return await _post('/process/clear', {}) as Map<String, dynamic>;
   }

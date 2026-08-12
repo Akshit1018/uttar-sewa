@@ -10,13 +10,14 @@ import isodate
 logger = logging.getLogger(__name__)
 
 class YouTubeService:
-    def __init__(self):
-        self.api_key = os.environ.get('YOUTUBE_API_KEY')
+    def __init__(self, fetcher=None, api_key=None):
+        self.fetcher = fetcher
+        self.api_key = os.environ.get("YOUTUBE_API_KEY") if api_key is None else api_key
         self.youtube = None
-        if self.api_key:
-            self.youtube = build('youtube', 'v3', developerKey=self.api_key)
-        else:
-            logger.warning("YOUTUBE_API_KEY missing; YouTube ingest disabled")
+        if self.fetcher is None and self.api_key:
+            self.youtube = build("youtube", "v3", developerKey=self.api_key)
+        elif self.fetcher is None:
+            logger.warning("YOUTUBE_API_KEY missing; inject a fetcher or POST /api/process/ingest")
 
     def _client(self):
         if self.youtube is None:
@@ -25,6 +26,8 @@ class YouTubeService:
         
     async def get_channel_videos(self, channel_username: str = "bhajanmarg") -> List[Dict[str, Any]]:
         """Get all videos from the channel"""
+        if self.fetcher is not None:
+            return list(self.fetcher.list_channel_videos(channel_username) or [])
         try:
             # First get channel ID from username
             channels_response = self._client().channels().list(
@@ -115,6 +118,8 @@ class YouTubeService:
     
     async def get_video_captions(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
         """Get video captions/transcripts"""
+        if self.fetcher is not None:
+            return self.fetcher.get_captions(video_id)
         try:
             # Get available caption tracks
             captions_response = self._client().captions().list(

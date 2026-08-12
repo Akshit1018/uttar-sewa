@@ -130,6 +130,12 @@ class ScrapeRequest(BaseModel):
 class VideoMetaRequest(BaseModel):
     video_id: str
 
+
+class IngestRequest(BaseModel):
+    videos: List[Dict[str, Any]] = []
+    video_ids: List[str] = []
+    channel: Optional[str] = None
+
 class ProcessingStatus(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     status: str  # pending, processing, completed, failed

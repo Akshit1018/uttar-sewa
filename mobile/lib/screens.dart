@@ -371,6 +371,15 @@ class ControlDashboardScreen extends StatelessWidget {
           const SizedBox(height: 8),
           OutlinedButton(
             onPressed: () => _run(context, () async {
+              final channel = state.channelId == 'all' ? 'bhajanmarg' : state.channelId;
+              await state.api.ingestLibrary(channel: channel);
+              await state.refreshDashboard();
+            }),
+            child: Text(state.t('YouTube लाइब्रेरी', 'Ingest YouTube')),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => _run(context, () async {
               await state.api.clearProcessing();
               await state.refreshDashboard();
             }),
