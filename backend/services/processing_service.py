@@ -1,18 +1,39 @@
 import asyncio
 import logging
-from typing import List, Dict, Any
+import os
+from typing import Any, Callable, Dict, List, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from .youtube_service import YouTubeService
+
+from ..models import ProcessingStatus, QuestionAnswer, TranscriptSegment, VideoModel
 from .llm_service import LLMService
-from ..models import VideoModel, TranscriptSegment, QuestionAnswer, ProcessingStatus
+from .transcript_ingest import (
+    resolve_video_transcript,
+    segments_to_qa,
+    to_caption_segments,
+    transcribe_with_whisper,
+)
+from .youtube_service import YouTubeService
 
 logger = logging.getLogger(__name__)
 
+TranscribeFn = Callable[..., List[Dict[str, Any]]]
+
+
 class ProcessingService:
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(
+        self,
+        db: AsyncIOMotorDatabase,
+        youtube_service: Optional[YouTubeService] = None,
+        llm_service: Optional[LLMService] = None,
+        transcribe: Optional[TranscribeFn] = None,
+        audio_directory: Optional[str] = None,
+    ):
         self.db = db
-        self.youtube_service = YouTubeService()
-        self.llm_service = LLMService()
+        self.youtube_service = youtube_service or YouTubeService()
+        self.llm_service = llm_service or LLMService()
+        self.transcribe = transcribe or transcribe_with_whisper
+        self.audio_directory = audio_directory or os.getenv("WHISPER_AUDIO_DIR")
         
     async def start_channel_processing(self, channel_url: str = None) -> str:
         """Start incremental processing of unprocessed videos from the channel"""
@@ -165,6 +186,51 @@ class ProcessingService:
             logger.error(f"Error extracting channel from URL: {str(e)}")
             return "bhajanmarg"  # fallback
     
+    async def _ingest_and_persist(
+        self,
+        video_id: str,
+        title: str,
+        captions: Optional[List[Dict[str, Any]]],
+    ) -> bool:
+        """Store captions or Whisper transcript. Empty result stays unprocessed."""
+        ingested = resolve_video_transcript(
+            video_id,
+            captions=captions,
+            transcribe=self.transcribe,
+            audio_directory=self.audio_directory,
+        )
+        storage = to_caption_segments(ingested["segments"])
+        if not storage:
+            logger.warning(
+                f"No captions or audio transcript for video {video_id}; leaving unprocessed"
+            )
+            return False
+
+        for segment_data in storage:
+            segment = TranscriptSegment(video_id=video_id, **segment_data)
+            await self.db.transcript_segments.insert_one(segment.dict())
+
+        logger.info(f"Extracting Q&A pairs from {len(storage)} segments...")
+        qa_pairs = await self.llm_service.extract_qa_from_transcript(storage, title)
+        if not qa_pairs:
+            qa_pairs = segments_to_qa(ingested["segments"], video_id, title)
+
+        for qa_data in qa_pairs:
+            payload = dict(qa_data)
+            payload["video_id"] = video_id
+            qa = QuestionAnswer(**payload)
+            await self.db.question_answers.insert_one(qa.dict())
+
+        await self.db.videos.update_one(
+            {"video_id": video_id},
+            {"$set": {"transcript_processed": True}},
+        )
+        logger.info(
+            f"Successfully processed video {video_id}: extracted {len(qa_pairs)} Q&A pairs "
+            f"from {ingested['source']}"
+        )
+        return True
+
     async def _process_single_video_smart(self, video: Dict[str, Any], status_id: str):
         """Smart processing - only use APIs when absolutely necessary"""
         try:
@@ -175,49 +241,9 @@ class ProcessingService:
                 logger.info(f"Video {video_id} already processed, skipping...")
                 return
             
-            # Get video captions (this will use YouTube API)
             logger.info(f"Getting captions for video: {video['title']}")
             caption_segments = await self.youtube_service.get_video_captions(video_id)
-            
-            if not caption_segments:
-                logger.warning(f"No captions available for video {video_id}")
-                # Mark as processed even without captions to avoid reprocessing
-                await self.db.videos.update_one(
-                    {"video_id": video_id},
-                    {"$set": {"transcript_processed": True}}
-                )
-                return
-            
-            # Store transcript segments
-            for segment_data in caption_segments:
-                segment = TranscriptSegment(
-                    video_id=video_id,
-                    **segment_data
-                )
-                await self.db.transcript_segments.insert_one(segment.dict())
-            
-            # Extract Q&A pairs using LLM (this will use Gemini API)
-            logger.info(f"Extracting Q&A pairs from {len(caption_segments)} segments...")
-            qa_pairs = await self.llm_service.extract_qa_from_transcript(
-                caption_segments, 
-                video['title']
-            )
-            
-            # Store Q&A pairs
-            for qa_data in qa_pairs:
-                qa = QuestionAnswer(
-                    video_id=video_id,
-                    **qa_data
-                )
-                await self.db.question_answers.insert_one(qa.dict())
-            
-            # Mark video as processed
-            await self.db.videos.update_one(
-                {"video_id": video_id},
-                {"$set": {"transcript_processed": True}}
-            )
-            
-            logger.info(f"Successfully processed video {video_id}: extracted {len(qa_pairs)} Q&A pairs")
+            await self._ingest_and_persist(video_id, video["title"], caption_segments)
             
         except Exception as e:
             logger.error(f"Error processing video {video.get('video_id', 'unknown')}: {str(e)}")
@@ -309,44 +335,9 @@ class ProcessingService:
             else:
                 await self.db.videos.insert_one(video.dict())
             
-            # Get video captions
             logger.info(f"Getting captions for video: {video.title}")
             caption_segments = await self.youtube_service.get_video_captions(video_id)
-            
-            if not caption_segments:
-                logger.warning(f"No captions available for video {video_id}")
-                return
-            
-            # Store transcript segments
-            for segment_data in caption_segments:
-                segment = TranscriptSegment(
-                    video_id=video_id,
-                    **segment_data
-                )
-                await self.db.transcript_segments.insert_one(segment.dict())
-            
-            # Extract Q&A pairs using LLM
-            logger.info(f"Extracting Q&A pairs from {len(caption_segments)} segments...")
-            qa_pairs = await self.llm_service.extract_qa_from_transcript(
-                caption_segments, 
-                video.title
-            )
-            
-            # Store Q&A pairs
-            for qa_data in qa_pairs:
-                qa = QuestionAnswer(
-                    video_id=video_id,
-                    **qa_data
-                )
-                await self.db.question_answers.insert_one(qa.dict())
-            
-            # Mark video as processed
-            await self.db.videos.update_one(
-                {"video_id": video_id},
-                {"$set": {"transcript_processed": True}}
-            )
-            
-            logger.info(f"Successfully processed video {video_id}: extracted {len(qa_pairs)} Q&A pairs")
+            await self._ingest_and_persist(video_id, video.title, caption_segments)
             
         except Exception as e:
             logger.error(f"Error processing video {video_data.get('video_id', 'unknown')}: {str(e)}")

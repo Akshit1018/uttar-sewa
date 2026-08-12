@@ -34,6 +34,7 @@ class QuestionAnswer(BaseModel):
     confidence_score: float
     language: str
     tags: List[str] = []
+    source: Optional[str] = None
     embedding: Optional[List[float]] = None
     channel_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
