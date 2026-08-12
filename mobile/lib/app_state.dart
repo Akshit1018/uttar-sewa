@@ -4,11 +4,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'api_client.dart';
 import 'models.dart';
+import 'native_sadhana.dart';
 
 class AppState extends ChangeNotifier {
-  AppState({ApiClient? api}) : api = api ?? ApiClient();
+  AppState({ApiClient? api, NativeSadhana? native})
+      : api = api ?? ApiClient(),
+        native = native ?? NativeSadhana();
 
   final ApiClient api;
+  final NativeSadhana native;
   String language = 'hi';
   String channelId = 'all';
   String deviceId = 'device';
@@ -24,6 +28,10 @@ class AppState extends ChangeNotifier {
   String? error;
   bool loading = false;
   bool askRequested = false;
+
+  bool overlayOn = false;
+  bool liveActivityOn = false;
+  bool watchOn = false;
 
   bool get isHindi => language == 'hi';
 
@@ -54,6 +62,8 @@ class AppState extends ChangeNotifier {
     } catch (err) {
       error = err.toString();
     }
+    native.onVolumeTap = tapBead;
+    native.attach();
     notifyListeners();
   }
 
@@ -102,6 +112,10 @@ class AppState extends ChangeNotifier {
   Future<void> tapBead() async {
     mala = await api.tap(mala);
     await persistMala();
+    await native.updateCount(beads: mala.currentInCycle, cycle: mala.beadsPerCycle);
+    if (liveActivityOn) {
+      await native.updateLiveActivity(beads: mala.currentInCycle, cycle: mala.beadsPerCycle);
+    }
     notifyListeners();
   }
 
@@ -162,5 +176,31 @@ class AppState extends ChangeNotifier {
   Future<void> openUrl(String url) async {
     if (url.isEmpty) return;
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> toggleOverlay() async {
+    if (overlayOn) {
+      await native.stopOverlay();
+      overlayOn = false;
+    } else {
+      overlayOn = await native.startOverlay(
+        beads: mala.currentInCycle,
+        cycle: mala.beadsPerCycle,
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<void> toggleLiveActivity() async {
+    liveActivityOn = await native.startLiveActivity(
+      beads: mala.currentInCycle,
+      cycle: mala.beadsPerCycle,
+    );
+    notifyListeners();
+  }
+
+  Future<void> toggleWatch() async {
+    watchOn = await native.startWatchSession();
+    notifyListeners();
   }
 }

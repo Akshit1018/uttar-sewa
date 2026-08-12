@@ -19,4 +19,14 @@ void main() {
     expect(find.text('कंट्रोल'), findsOneWidget);
     expect(find.text('सेटिंग'), findsOneWidget);
   });
+
+  testWidgets('sadhana tab exposes overlay live activity and watch', (tester) async {
+    await tester.pumpWidget(const UttarSewaApp());
+    await tester.pump();
+    await tester.tap(find.text('साधना'));
+    await tester.pumpAndSettle();
+    expect(find.text('ओवरले'), findsOneWidget);
+    expect(find.text('लाइव गतिविधि'), findsOneWidget);
+    expect(find.text('घड़ी'), findsOneWidget);
+  });
 }

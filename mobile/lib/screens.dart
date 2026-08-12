@@ -228,6 +228,25 @@ class SadhanaScreen extends StatelessWidget {
           },
           child: Text(state.t('वापस', 'Undo')),
         ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: state.toggleOverlay,
+          child: Text(
+            state.overlayOn
+                ? state.t('ओवरले बंद', 'Hide overlay')
+                : state.t('ओवरले', 'Overlay bubble'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: state.toggleLiveActivity,
+          child: Text(state.t('लाइव गतिविधि', 'Live Activity')),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: state.toggleWatch,
+          child: Text(state.t('घड़ी', 'Watch')),
+        ),
         if (state.today?.gita != null) ...[
           const SizedBox(height: 24),
           Text(state.t('आज का श्लोक', "Today's verse"), style: Theme.of(context).textTheme.titleMedium),
