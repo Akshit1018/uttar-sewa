@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Heart, Play, ExternalLink, Clock, Trash2, Share2, X } from 'lucide-react';
+import { Heart, Clock, Trash2, Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { useFavorites } from '../hooks/useFavorites';
 import { useToast } from '../hooks/use-toast';
 import { t } from '../utils/translations';
+import { formatTimestamp } from '../lib/youtube';
+import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
 
 const FavoritesPage = ({ language }) => {
   const { favorites, removeFromFavorites, clearFavorites, getFavoritesByCategory } = useFavorites();
@@ -49,31 +51,6 @@ const FavoritesPage = ({ language }) => {
         title: language === 'hi' ? 'लिंक कॉपी किया गया' : 'Link Copied',
         description: language === 'hi' ? 'लिंक क्लिपबोर्ड में कॉपी हो गया' : 'Link copied to clipboard',
       });
-    }
-  };
-
-  const formatTimestamp = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const openVideoAtTimestamp = (videoId, startTime) => {
-    const timestampUrl = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    
-    if (window.DeviceMotionEvent !== undefined) {
-      const youtubeAppUrl = `youtube://watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-      const link = document.createElement('a');
-      link.href = youtubeAppUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      setTimeout(() => {
-        window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-      }, 1000);
-    } else {
-      window.open(timestampUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -184,7 +161,7 @@ const FavoritesPage = ({ language }) => {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
-                      {favorite.video_title.substring(0, 40)}...
+                      {(favorite.video_title || '').substring(0, 40)}...
                     </Badge>
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
                       <Clock className="w-3 h-3 mr-1" />
@@ -202,22 +179,19 @@ const FavoritesPage = ({ language }) => {
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                      onClick={() => openVideoAtTimestamp(favorite.video_id, favorite.start_time)}
+                    <VideoTimestampLink
+                      videoId={favorite.video_id}
+                      startTime={favorite.start_time}
+                      timestampUrl={favorite.timestamp_url}
+                      label={`${language === 'hi' ? 'वीडियो देखें' : 'Watch Video'} (${formatTimestamp(favorite.start_time)})`}
                       className="bg-white text-black hover:bg-gray-100 rounded-xl px-4 py-3 font-medium transition-colors duration-200 flex-1"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      {language === 'hi' ? 'वीडियो देखें' : 'Watch Video'} ({formatTimestamp(favorite.start_time)})
-                    </Button>
-                    
-                    <Button
-                      onClick={() => window.open(favorite.youtube_url, '_blank')}
-                      variant="outline"
+                    />
+                    <VideoHomeLink
+                      videoId={favorite.video_id}
+                      youtubeUrl={favorite.youtube_url}
+                      label={language === 'hi' ? 'पूरा वीडियो' : 'Full Video'}
                       className="border-white/20 text-gray-300 hover:bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      {language === 'hi' ? 'पूरा वीडियो' : 'Full Video'}
-                    </Button>
+                    />
                   </div>
 
                   <div className="mt-3 text-xs text-gray-500">

@@ -62,6 +62,19 @@ body {
   font-feature-settings: "liga", "kern";
 }
 
+/* Chat fills the viewport below the fixed header */
+.chat-shell {
+  height: calc(100dvh - 4rem);
+  max-height: calc(100dvh - 4rem);
+}
+
+@supports not (height: 100dvh) {
+  .chat-shell {
+    height: calc(100vh - 4rem);
+    max-height: calc(100vh - 4rem);
+  }
+}
+
 /* iOS/Android safe area support */
 .App {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);

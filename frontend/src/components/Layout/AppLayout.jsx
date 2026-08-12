@@ -117,7 +117,7 @@ const AppLayout = ({ children, currentView, setCurrentView, language, setLanguag
           {/* Menu Footer */}
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 glass-card">
             <div className="text-center text-sm text-gray-400">
-              <p>{language === 'hi' ? 'संस्करण 2.0.0' : 'Version 2.0.0'}</p>
+              <p>{language === 'hi' ? 'संस्करण 2.1.0' : 'Version 2.1.0'}</p>
               <p className="mt-1 text-xs">
                 {language === 'hi' ? '900+ आध्यात्मिक वीडियो' : '900+ Spiritual Videos'}
               </p>

@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import sys
-import os
+from pathlib import Path
 
-# Add the app directory to the Python path
-sys.path.insert(0, '/app')
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-# Import the FastAPI app
-from backend.server import app
+from backend.server import app  # noqa: E402
 
-# Print success message
 print("Backend app imported successfully!")

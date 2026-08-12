@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Play, ExternalLink, Clock, Heart, HeartIcon, Mic, MicOff, Bot, User, Sparkles, Star } from 'lucide-react';
+import { Send, Loader2, Clock, Heart, HeartIcon, Mic, MicOff, Bot, User, Sparkles, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
@@ -9,10 +9,14 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useSearchHistory } from '../hooks/useSearchHistory';
 import { useVoiceSearch } from '../hooks/useVoiceSearch';
 import { useOfflineStorage } from '../hooks/useOfflineStorage';
-import { useDebounce, usePerformanceMonitor } from '../hooks/usePerformance';
+import { usePerformanceMonitor } from '../hooks/usePerformance';
 import { notificationService } from '../services/notificationService';
 import { analyticsService } from '../services/analyticsService';
 import { t } from '../utils/translations';
+import { formatTimestamp } from '../lib/youtube';
+import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
+import ChannelSelector from './ChannelSelector';
+import { useChannels } from '../hooks/useChannels';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -24,6 +28,8 @@ const ChatInterface = ({ language }) => {
   const [suggestedQuestions, setSuggestedQuestions] = useState([]);
   const [stats, setStats] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [followUps, setFollowUps] = useState([]);
+  const { channels, channelId, setChannelId } = useChannels();
   
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -48,6 +54,7 @@ const ChatInterface = ({ language }) => {
   useEffect(() => {
     loadSuggestedQuestions();
     loadStats();
+    loadRecommendations();
     analyticsService.trackPageView('chat');
     
     // Add welcome message
@@ -87,6 +94,33 @@ const ChatInterface = ({ language }) => {
     } catch (error) {
       console.error('Error loading suggested questions:', error);
       setSuggestedQuestions(t('sampleQuestions', language));
+    }
+  };
+
+  const loadRecommendations = async () => {
+    try {
+      const history = JSON.parse(localStorage.getItem('spiritual_qa_search_history') || '[]');
+      const recentQueries = history.slice(0, 6).map((item) => item.query).filter(Boolean);
+      const response = await fetch(`${API}/recommendations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recent_queries: recentQueries,
+          language,
+          channel_id: channelId === 'all' ? null : channelId,
+          limit: 6,
+        }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (Array.isArray(data.recommendations) && data.recommendations.length > 0) {
+        setSuggestedQuestions((current) => {
+          const merged = [...data.recommendations, ...current];
+          return [...new Set(merged)].slice(0, 8);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
     }
   };
 
@@ -143,7 +177,13 @@ const ChatInterface = ({ language }) => {
           },
           body: JSON.stringify({
             query: messageText,
-            limit: 3
+            limit: 3,
+            language,
+            conversation_history: messages
+              .filter((item) => item.type === 'user')
+              .slice(-4)
+              .map((item) => item.content),
+            channel_id: channelId === 'all' ? null : channelId,
           }),
         });
 
@@ -182,6 +222,9 @@ const ChatInterface = ({ language }) => {
       };
 
       setMessages(prev => [...prev, botMessage]);
+
+      const related = (data[0] && data[0].related_questions) || [];
+      setFollowUps(related);
       
       if (data.length > 0) {
         notificationService.showSearchCompleteNotification(data.length, language);
@@ -246,72 +289,6 @@ const ChatInterface = ({ language }) => {
     }
   };
 
-  const formatTimestamp = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const openVideoAtTimestamp = (videoId, startTime, mobileAppUrl = null) => {
-    const timestampUrl = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    const appUrl = mobileAppUrl || `youtube://watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    
-    analyticsService.trackVideoClick(videoId, startTime, 'chat_result');
-    
-    // Enhanced mobile detection and handling
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /Android/.test(navigator.userAgent);
-    
-    if (isMobile) {
-      // Try to open in YouTube app first
-      try {
-        // Create a hidden iframe to trigger the app
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = appUrl;
-        document.body.appendChild(iframe);
-        
-        // For iOS, also try the universal link
-        if (isIOS) {
-          const universalLink = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-          window.location.href = universalLink;
-        }
-        
-        // Clean up iframe after attempt
-        setTimeout(() => {
-          try {
-            document.body.removeChild(iframe);
-          } catch (e) {
-            // Iframe might already be removed
-          }
-        }, 1500);
-        
-        // Fallback to web version if app doesn't open
-        setTimeout(() => {
-          // Check if we're still on the same page (app didn't open)
-          if (document.hasFocus && document.hasFocus()) {
-            window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-          }
-        }, 1000);
-        
-      } catch (error) {
-        console.error('Error opening YouTube app:', error);
-        // Fallback to web
-        window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-      }
-    } else {
-      // Desktop: open in new tab
-      window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-    }
-    
-    // Show user feedback
-    toast({
-      title: language === 'hi' ? 'वीडियो खोली जा रही है' : 'Opening Video',
-      description: `${language === 'hi' ? 'समय:' : 'At:'} ${formatTimestamp(startTime)}`,
-    });
-  };
-
   const renderMessage = (message) => {
     const isUser = message.type === 'user';
     
@@ -372,7 +349,7 @@ const ChatInterface = ({ language }) => {
 
                       <div className="flex flex-wrap gap-2 mb-3">
                         <Badge className="bg-white/10 text-white text-xs px-2 py-1">
-                          {result.video_title.substring(0, 30)}...
+                          {(result.video_title || '').substring(0, 30)}...
                         </Badge>
                         <Badge className="bg-white/10 text-white text-xs px-2 py-1">
                           <Clock className="w-3 h-3 mr-1" />
@@ -385,24 +362,19 @@ const ChatInterface = ({ language }) => {
                       </div>
 
                       <div className="flex gap-2">
-                        <Button
-                          onClick={() => openVideoAtTimestamp(
-                            result.video_id, 
-                            result.start_time,
-                            result.mobile_app_url
-                          )}
+                        <VideoTimestampLink
+                          videoId={result.video_id}
+                          startTime={result.start_time}
+                          timestampUrl={result.timestamp_url}
+                          label={formatTimestamp(result.start_time)}
                           className="bg-white text-black hover:bg-gray-100 text-xs px-3 py-2 h-auto flex-1"
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          {formatTimestamp(result.start_time)}
-                        </Button>
-                        <Button
-                          onClick={() => window.open(result.youtube_url, '_blank')}
-                          variant="outline"
+                        />
+                        <VideoHomeLink
+                          videoId={result.video_id}
+                          youtubeUrl={result.youtube_url}
+                          label=""
                           className="border-white/20 text-gray-300 hover:bg-white/10 text-xs px-3 py-2 h-auto"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </Button>
+                        />
                       </div>
                     </div>
                   ))}
@@ -423,7 +395,7 @@ const ChatInterface = ({ language }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="chat-shell bg-black text-white flex flex-col overflow-hidden">
       {/* Header with Stats */}
       <div className="flex-shrink-0 px-4 py-4 border-b border-white/10 glass-card">
         <div className="flex items-center justify-between">
@@ -435,7 +407,15 @@ const ChatInterface = ({ language }) => {
               {language === 'hi' ? 'आपके प्रश्नों का उत्तर देने के लिए तैयार' : 'Ready to answer your questions'}
             </p>
           </div>
-          <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+          <div className="flex items-center gap-2">
+            <ChannelSelector
+              language={language}
+              channelId={channelId}
+              setChannelId={setChannelId}
+              channels={channels}
+            />
+            <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+          </div>
         </div>
 
         {stats && (
@@ -509,8 +489,31 @@ const ChatInterface = ({ language }) => {
         </div>
       )}
 
+      {/* Follow-up questions */}
+      {!showSuggestions && followUps.length > 0 && !loading && (
+        <div className="flex-shrink-0 px-4 py-2 border-t border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-white" />
+            <span className="text-sm font-medium text-white">
+              {t('followUps', language)}
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+            {followUps.map((question, index) => (
+              <button
+                key={`${question}-${index}`}
+                onClick={() => handleSuggestedQuestionClick(question)}
+                className="flex-shrink-0 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs text-gray-300 hover:text-white transition-colors border border-white/10"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
-      <div className="flex-shrink-0 p-4 border-t border-white/10 glass-card">
+      <div className="flex-shrink-0 p-4 border-t border-white/10 glass-card" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
             <Input

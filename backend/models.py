@@ -12,6 +12,7 @@ class VideoModel(BaseModel):
     upload_date: datetime
     view_count: int
     transcript_processed: bool = False
+    channel_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class TranscriptSegment(BaseModel):
@@ -34,12 +35,15 @@ class QuestionAnswer(BaseModel):
     language: str
     tags: List[str] = []
     embedding: Optional[List[float]] = None
+    channel_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class SearchQuery(BaseModel):
     query: str
     language: Optional[str] = "auto"
     limit: int = 5
+    conversation_history: List[str] = Field(default_factory=list)
+    channel_id: Optional[str] = None
 
 class SearchResult(BaseModel):
     question: str
@@ -51,6 +55,16 @@ class SearchResult(BaseModel):
     confidence_score: float
     youtube_url: str
     timestamp_url: str
+    channel_id: Optional[str] = None
+    channel_name: Optional[str] = None
+    related_questions: List[str] = Field(default_factory=list)
+    formatted_start_time: Optional[str] = None
+
+class RecommendationRequest(BaseModel):
+    recent_queries: List[str] = Field(default_factory=list)
+    language: Optional[str] = "hi"
+    limit: int = 6
+    channel_id: Optional[str] = None
 
 class ProcessingStatus(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

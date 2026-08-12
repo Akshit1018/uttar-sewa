@@ -29,6 +29,9 @@ export const translations = {
     
     // Suggested Questions
     suggestedQuestions: "सुझाए गए प्रश्न",
+    followUps: "आगे पूछें",
+    recommendations: "आपके लिए सुझाव",
+    channels: "चैनल",
     suggestedNote: "ये सुझाए गए प्रश्न आपकी खोज में मदद कर सकते हैं",
     
     // Processing
@@ -103,6 +106,9 @@ export const translations = {
     
     // Suggested Questions
     suggestedQuestions: "Suggested Questions",
+    followUps: "Ask next",
+    recommendations: "Suggested for you",
+    channels: "Channels",
     suggestedNote: "These suggested questions can help with your search",
     
     // Processing

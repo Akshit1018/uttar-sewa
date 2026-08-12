@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Play, ExternalLink, Clock, Sparkles, AlertCircle, Heart, HeartIcon, Mic, MicOff, History, Zap, Star, TrendingUp } from 'lucide-react';
+import { Search, Loader2, Play, Clock, Sparkles, AlertCircle, Heart, HeartIcon, Mic, MicOff, History, Zap, Star, TrendingUp } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -13,6 +13,10 @@ import { useDebounce, usePerformanceMonitor } from '../hooks/usePerformance';
 import { notificationService } from '../services/notificationService';
 import { analyticsService } from '../services/analyticsService';
 import { t } from '../utils/translations';
+import { formatTimestamp } from '../lib/youtube';
+import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
+import ChannelSelector from './ChannelSelector';
+import { useChannels } from '../hooks/useChannels';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -26,6 +30,7 @@ const SearchInterface = ({ language }) => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showVoiceSearch, setShowVoiceSearch] = useState(false);
+  const { channels, channelId, setChannelId } = useChannels();
   
   const searchInputRef = useRef(null);
   const { toast } = useToast();
@@ -149,7 +154,9 @@ const SearchInterface = ({ language }) => {
           },
           body: JSON.stringify({
             query: searchQuery,
-            limit: 5
+            limit: 5,
+            language,
+            channel_id: channelId === 'all' ? null : channelId,
           }),
         });
 
@@ -245,79 +252,21 @@ const SearchInterface = ({ language }) => {
     }
   };
 
-  const formatTimestamp = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const openVideoAtTimestamp = (videoId, startTime, title = '') => {
-    // Create the timestamp URL
-    const timestampUrl = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    
-    // Log analytics
-    analyticsService.trackVideoClick(videoId, startTime, 'search_result');
-    
-    // Show loading toast
-    toast({
-      title: "Opening Video",
-      description: `Opening "${title}" at ${formatTimestamp(startTime)}`,
-      duration: 2000,
-    });
-    
-    // Detect mobile vs desktop
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
-    if (isMobile) {
-      // Mobile: Try app first, then fallback to web
-      const appUrl = `youtube://watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-      
-      try {
-        // For iOS, use window.location for better app detection
-        if (isIOS) {
-          window.location.href = appUrl;
-          
-          // Fallback to web after short delay if app doesn't open
-          setTimeout(() => {
-            // Check if we're still on the same page (app didn't open)
-            if (document.hasFocus()) {
-              window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-            }
-          }, 1500);
-        } else {
-          // Android: Try intent first
-          const intentUrl = `intent://watch?v=${videoId}&t=${Math.floor(startTime)}s#Intent;package=com.google.android.youtube;scheme=https;launchFlags=0x10000000;S.browser_fallback_url=${encodeURIComponent(timestampUrl)};end`;
-          
-          // Try the intent
-          window.location.href = intentUrl;
-          
-          // Fallback for older Android versions
-          setTimeout(() => {
-            if (document.hasFocus()) {
-              window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-            }
-          }, 1000);
-        }
-      } catch (error) {
-        console.error('Error opening mobile app:', error);
-        // Direct fallback to web
-        window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-      }
-    } else {
-      // Desktop: Direct web opening
-      window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
   const getRecentHistory = () => getRecentSearches(5);
   const getPopularHistory = () => getPopularSearches(5);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-[calc(100dvh-4rem)] bg-black text-white">
       {/* Hero Section - Mobile Optimized */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 relative">
         {/* Online/Offline Indicator */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <ChannelSelector
+            language={language}
+            channelId={channelId}
+            setChannelId={setChannelId}
+            channels={channels}
+          />
           <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}>
           </div>
         </div>
@@ -524,7 +473,7 @@ const SearchInterface = ({ language }) => {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
-                      {result.video_title.substring(0, 40)}...
+                      {(result.video_title || '').substring(0, 40)}...
                     </Badge>
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
                       <Clock className="w-3 h-3 mr-1" />
@@ -542,22 +491,19 @@ const SearchInterface = ({ language }) => {
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                      onClick={() => openVideoAtTimestamp(result.video_id, result.start_time, result.video_title)}
+                    <VideoTimestampLink
+                      videoId={result.video_id}
+                      startTime={result.start_time}
+                      timestampUrl={result.timestamp_url}
+                      label={`${t('watchVideo', language)} (${formatTimestamp(result.start_time)})`}
                       className="bg-white text-black hover:bg-gray-100 rounded-xl px-4 py-3 font-medium transition-colors duration-200 flex-1 btn-mobile"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      {t('watchVideo', language)} ({formatTimestamp(result.start_time)})
-                    </Button>
-                    
-                    <Button
-                      onClick={() => window.open(result.youtube_url, '_blank')}
-                      variant="outline"
+                    />
+                    <VideoHomeLink
+                      videoId={result.video_id}
+                      youtubeUrl={result.youtube_url}
+                      label={t('fullVideo', language)}
                       className="border-white/20 text-gray-300 hover:bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm btn-mobile"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      {t('fullVideo', language)}
-                    </Button>
+                    />
                   </div>
                 </CardContent>
               </Card>

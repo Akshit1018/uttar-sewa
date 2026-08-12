@@ -1,21 +1,27 @@
 # Uttar Sewa
 
-**AI service platform — AI intake, service diagnosis, and provider matching.**
+**Spiritual Q&A from video discourses — ask in Hindi or English, jump to the exact timestamp.**
 
-Uttar Sewa ("Northern Service") is a Python/FastAPI service platform that takes a user's request, diagnoses what service they need, and matches them to the right provider. Built as a two-sided service layer (customer intake ↔ provider matching).
+Uttar Sewa ("Northern Service") is a React + FastAPI app that answers spiritual questions from processed YouTube transcripts. Each answer cites the source video and opens at the matching moment.
+
+## What it does
+
+- **Chat and search** — conversational Q&A with follow-ups, or a classic search page
+- **Timestamp links** — real YouTube watch URLs (`watch?v=…&t=seconds`) that open in a new tab
+- **Channel groups** — filter by topic (bhakti, meditation, philosophy, peace) or search all
+- **Memory** — follow-up questions like "और कैसे?" use the previous turn
+- **Recommendations** — suggested questions from recent search history
+- **PWA extras** — favorites, voice input, offline cache, Hindi/English UI
 
 ## Architecture
 
-- **Backend** — Python, FastAPI (`app_server.py` + `backend/`)
-- **Frontend** — frontend app (see `frontend/`)
-- **Tests** — `tests/`, `backend_test.py`, `test_imports.py`
-
 ```
-app_server.py        FastAPI entrypoint
-backend/             core service logic (intake, diagnosis, matching)
-frontend/            frontend app
-tests/               test suite
-run_backend.py       runner helper
+app_server.py / run_backend.py   FastAPI entry (imports backend.server)
+backend/server.py                API routes
+backend/services/               search, YouTube, processing, timestamps
+backend/spiritual_qa_content.py curated Q&A fallback when the DB is empty
+frontend/                        React (CRA + Tailwind)
+tests/                           unit tests (no Mongo required)
 ```
 
 ## Run locally
@@ -24,18 +30,36 @@ run_backend.py       runner helper
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r backend/requirements.txt
 cp backend/.env.example backend/.env                 # fill in your keys
-python run_backend.py
+python -c "from backend.server import app; print('ok')"   # import check
+
+cd frontend
+cp .env.example .env                                 # set REACT_APP_BACKEND_URL
+yarn install
+yarn start
 ```
 
-> ⚠️ `.env` files are git-ignored and **must not** be committed. Use `.env.example` as the template.
+Start the API with uvicorn after `.env` is filled:
+
+```bash
+uvicorn backend.server:app --reload --port 8000
+```
+
+> `.env` files are git-ignored and **must not** be committed. Use `.env.example` as the template.
+
+## Tests
+
+```bash
+pip install -r backend/requirements.txt
+python -m pytest tests/ -q
+```
 
 ## Why it exists
 
-Service businesses (legal, accounting, notary, consulting) lose leads at the intake step — the customer can't articulate what they need, and the business can't triage fast enough. Uttar Sewa puts an AI layer in front of intake: diagnose the need, then route to the right provider. Same pattern I deployed for an accounting-firm two-sided marketplace.
+Seekers ask the same questions that already live in long discourse videos. Uttar Sewa turns those videos into searchable Q&A with a clickable timestamp, instead of making people scrub through hours of footage.
 
 ## Status
 
-Working backend + frontend. Configuration and client-specific data abstracted for open-source release.
+Working backend + frontend. Core search ranking, timestamp URLs, chat memory, and channel filters were updated in this release. YouTube processing still needs captions (or transcription) for a full 900+ video index; the curated library is used when the database is empty.
 
 ## License
 

@@ -10,3 +10,4 @@ mistralai==1.2.4
 google-cloud-firestore==2.20.0
 google-cloud-core==2.4.1
 google-auth==2.36.0
+pytest==8.3.4

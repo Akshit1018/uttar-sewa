@@ -12,27 +12,32 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import uuid
 
 # Import models and services
 from backend.models import (
-    VideoModel, TranscriptSegment, QuestionAnswer, 
-    SearchQuery, SearchResult, ProcessingStatus
+    VideoModel, TranscriptSegment, QuestionAnswer,
+    SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
 from backend.services.youtube_service import YouTubeService
 from backend.services.enhanced_search_coordinator import enhanced_search_coordinator
+from backend.services.relevance_search import (
+    expand_query, rank_answers, related_questions, library_as_qa, recommend_from_history
+)
+from backend.services.timestamp_urls import build_watch_url, format_timestamp_display
+from backend.services.channel_registry import list_channels, get_channel, topic_for_tags
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'uttar_sewa')]
 
 # Create the main app without a prefix
 app = FastAPI(title="Spiritual Q&A API", version="1.0.0")
@@ -83,80 +88,142 @@ async def get_processing_status(status_id: str):
         logger.error(f"Error getting processing status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def _normalize_qa_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
+    tags = doc.get("tags", []) or []
+    channel_id = doc.get("channel_id") or topic_for_tags(tags)
+    channel = get_channel(channel_id)
+    return {
+        "question": doc.get("question", ""),
+        "answer": doc.get("answer", ""),
+        "video_id": doc.get("video_id", "") or "",
+        "start_time": doc.get("start_time", 0) or 0,
+        "end_time": doc.get("end_time", (doc.get("start_time") or 0) + 60),
+        "confidence_score": doc.get("confidence_score", 0.8),
+        "tags": tags,
+        "language": doc.get("language", "hi"),
+        "video_title": doc.get("video_title") or doc.get("title") or "",
+        "channel_id": channel_id,
+        "channel_name": (channel or {}).get("name") or channel_id,
+    }
+
+
+async def _load_qa_database() -> List[Dict[str, Any]]:
+    qa_docs = await db.question_answers.find().to_list(2000)
+    qa_database = [_normalize_qa_doc(doc) for doc in qa_docs if doc.get("question")]
+    if not qa_database:
+        logger.warning("No Q&A documents found in database; using curated library")
+        return library_as_qa()
+    return qa_database
+
+
+def _to_search_result(answer: Dict[str, Any], video: Optional[Dict[str, Any]], related: List[str]) -> SearchResult:
+    video_id = answer.get("video_id") or ""
+    start_time = float(answer.get("start_time") or 0)
+    watch_url = build_watch_url(video_id, start_time) if video_id else ""
+    home_url = f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
+    video_title = (
+        (video or {}).get("title")
+        or answer.get("video_title")
+        or "Spiritual discourse"
+    )
+    channel_id = answer.get("channel_id") or (video or {}).get("channel_id")
+    channel = get_channel(channel_id)
+    return SearchResult(
+        question=answer["question"],
+        answer=answer["answer"],
+        video_id=video_id,
+        video_title=video_title,
+        start_time=start_time,
+        end_time=float(answer.get("end_time") or start_time + 60),
+        confidence_score=float(answer.get("confidence_score") or 0.7),
+        youtube_url=home_url,
+        timestamp_url=watch_url,
+        channel_id=channel_id,
+        channel_name=(channel or {}).get("name") or answer.get("channel_name"),
+        related_questions=related,
+        formatted_start_time=format_timestamp_display(start_time) if video_id else None,
+    )
+
+
 @api_router.post("/search", response_model=List[SearchResult])
 async def search_questions(query: SearchQuery):
-    """Enhanced search for relevant questions and answers using multiple strategies"""
+    """Search Q&A with conversation memory, channel filters, and lexical ranking."""
     try:
-        logger.info(f"Processing search query: '{query.query}' with limit: {query.limit}")
-        
-        # Get all Q&A pairs from database
-        qa_docs = await db.question_answers.find().to_list(1000)
-        
-        if not qa_docs:
-            logger.warning("No Q&A documents found in database")
+        if not (query.query or "").strip():
             return []
-        
-        logger.info(f"Found {len(qa_docs)} Q&A documents in database")
-        
-        # Convert to proper format for search algorithms
-        qa_database = []
-        for doc in qa_docs:
-            qa_database.append({
-                'question': doc['question'],
-                'answer': doc['answer'],
-                'video_id': doc['video_id'],
-                'start_time': doc['start_time'],
-                'end_time': doc.get('end_time', doc['start_time'] + 60),  # Default to 60s segment
-                'confidence_score': doc.get('confidence_score', 0.8),
-                'tags': doc.get('tags', []),
-                'language': doc.get('language', 'hi')
-            })
-        
-        # Use enhanced search coordinator for maximum accuracy
-        search_strategy = 'hybrid'  # Use hybrid strategy for best results
-        
-        relevant_answers = await enhanced_search_coordinator.search(
-            user_query=query.query,
-            qa_database=qa_database,
+
+        logger.info(f"Processing search query: '{query.query}' with limit: {query.limit}")
+        qa_database = await _load_qa_database()
+        expanded = expand_query(query.query, query.conversation_history)
+        relevant_answers = rank_answers(
+            expanded,
+            qa_database,
             limit=query.limit,
-            strategy=search_strategy
+            channel_id=query.channel_id,
         )
-        
-        logger.info(f"Enhanced search found {len(relevant_answers)} relevant answers")
-        
-        # Get video details and format results
-        results = []
-        for answer in relevant_answers:
+
+        if len(relevant_answers) < query.limit:
             try:
-                # Get video details
-                video = await db.videos.find_one({"video_id": answer['video_id']})
-                
-                if video:
-                    # Use enhanced metadata from search coordinator
-                    result = SearchResult(
-                        question=answer['question'],
-                        answer=answer['answer'],
-                        video_id=answer['video_id'],
-                        video_title=video['title'],
-                        start_time=answer['start_time'],
-                        end_time=answer.get('end_time', answer['start_time'] + 60),
-                        confidence_score=answer.get('confidence_score', answer.get('combined_score', 0.8)),
-                        youtube_url=answer.get('youtube_url', f"https://www.youtube.com/watch?v={answer['video_id']}"),
-                        timestamp_url=answer.get('timestamp_url', f"https://www.youtube.com/watch?v={answer['video_id']}&t={int(answer['start_time'])}s")
-                    )
-                    results.append(result)
-                else:
-                    logger.warning(f"Video not found for video_id: {answer['video_id']}")
-                    
+                extra = await enhanced_search_coordinator.search(
+                    user_query=expanded,
+                    qa_database=qa_database,
+                    limit=query.limit,
+                    strategy="ultra",
+                )
+                seen = {(item.get("video_id"), item.get("question")) for item in relevant_answers}
+                for item in extra:
+                    key = (item.get("video_id"), item.get("question"))
+                    if key not in seen:
+                        relevant_answers.append(item)
+                        seen.add(key)
+                    if len(relevant_answers) >= query.limit:
+                        break
+            except Exception as extra_error:
+                logger.warning(f"Optional ultra search skipped: {extra_error}")
+
+        results = []
+        for answer in relevant_answers[: query.limit]:
+            try:
+                video = None
+                if answer.get("video_id"):
+                    video = await db.videos.find_one({"video_id": answer["video_id"]})
+                related = related_questions(answer, qa_database, limit=3)
+                results.append(_to_search_result(answer, video, related))
             except Exception as e:
                 logger.error(f"Error processing search result: {str(e)}")
                 continue
-        
+
         logger.info(f"Returning {len(results)} formatted search results")
         return results
-        
+
     except Exception as e:
         logger.error(f"Error in enhanced search: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/channels")
+async def get_channels():
+    """List searchable channel groups."""
+    return {"channels": list_channels()}
+
+
+@api_router.post("/recommendations")
+async def get_recommendations(body: RecommendationRequest):
+    """Personalized question suggestions from recent search history."""
+    try:
+        qa_database = await _load_qa_database()
+        ranked = recommend_from_history(
+            body.recent_queries,
+            qa_database,
+            limit=body.limit,
+            channel_id=body.channel_id,
+        )
+        return {
+            "recommendations": [item["question"] for item in ranked],
+            "count": len(ranked),
+        }
+    except Exception as e:
+        logger.error(f"Error getting recommendations: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/stats")
