@@ -20,7 +20,7 @@ import uuid
 from backend.models import (
     VideoModel, TranscriptSegment, QuestionAnswer,
     SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
-    AskQuery, MalaState
+    AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
@@ -41,17 +41,26 @@ from backend.services.mala_counter import (
 )
 from backend.services.timestamp_urls import build_watch_url, format_timestamp_display
 from backend.services.channel_registry import list_channels, get_channel, topic_for_tags
+from backend.services.control_store import (
+    dashboard_payload,
+    default_settings,
+    mala_day_key,
+    merge_settings,
+    pin_document,
+)
+from backend.services.database import bootstrap_database
+from backend.db_schema import SETTINGS_DOC_ID
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=2000)
 db = client[os.environ.get('DB_NAME', 'uttar_sewa')]
 
 # Create the main app without a prefix
-app = FastAPI(title="Spiritual Q&A API", version="1.0.0")
+app = FastAPI(title="Uttar Sewa API", version="2.2.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -70,17 +79,39 @@ logger = logging.getLogger(__name__)
 @api_router.get("/")
 async def root():
     return {
-        "message": "Spiritual Q&A API",
+        "message": "Uttar Sewa API",
         "status": "running",
-        "description": "API for searching spiritual questions and answers from video transcripts"
+        "flutter": True,
+        "control_dashboard": "/api/control/dashboard",
+        "health": "/api/health",
+    }
+
+
+@api_router.get("/health")
+async def health():
+    mongo_ok = False
+    try:
+        await db.command("ping")
+        mongo_ok = True
+    except Exception:
+        mongo_ok = False
+    return {
+        "ok": True,
+        "api": True,
+        "database": mongo_ok,
+        "ready": True,
     }
 
 @api_router.post("/process/start")
 async def start_processing():
     """Start processing all videos from the YouTube channel"""
+    settings = await _load_control_settings()
+    if not settings.get("processing_enabled"):
+        raise HTTPException(status_code=400, detail="Processing is disabled in control settings")
     try:
         status_id = await processing_service.start_channel_processing()
         return {
+            "ok": True,
             "message": "Processing started",
             "status_id": status_id,
             "note": "This will process all videos from the channel. Check status using /process/status/{status_id}"
@@ -292,6 +323,126 @@ async def mala_undo(body: MalaState):
 async def mala_summary(body: MalaState):
     return summarize_day(body.model_dump())
 
+
+async def _load_control_settings():
+    try:
+        doc = await db.control_settings.find_one({"_id": SETTINGS_DOC_ID})
+        if doc:
+            return merge_settings(doc, {})
+    except Exception as error:
+        logger.warning(f"control settings read skipped: {error}")
+    return default_settings()
+
+
+async def _save_control_settings(settings):
+    try:
+        await db.control_settings.replace_one({"_id": SETTINGS_DOC_ID}, settings, upsert=True)
+    except Exception as error:
+        logger.warning(f"control settings write skipped: {error}")
+    return settings
+
+
+@api_router.get("/control/dashboard")
+async def control_dashboard():
+    stats = {
+        "total_videos": 0,
+        "processed_videos": 0,
+        "unprocessed_videos": 0,
+        "total_qa_pairs": 0,
+    }
+    pinned_count = 0
+    api_ok = True
+    try:
+        total_videos = await db.videos.count_documents({})
+        processed = await db.videos.count_documents({"transcript_processed": True})
+        qa_count = await db.question_answers.count_documents({})
+        pinned_count = await db.pinned_qa.count_documents({})
+        stats = {
+            "total_videos": total_videos,
+            "processed_videos": processed,
+            "unprocessed_videos": max(0, total_videos - processed),
+            "total_qa_pairs": qa_count,
+        }
+    except Exception as error:
+        logger.warning(f"control dashboard mongo skipped: {error}")
+        api_ok = True
+    settings = await _load_control_settings()
+    return dashboard_payload(stats, settings, pinned_count, api_ok)
+
+
+@api_router.get("/control/settings")
+async def get_control_settings():
+    return await _load_control_settings()
+
+
+@api_router.put("/control/settings")
+async def put_control_settings(body: ControlSettingsPatch):
+    current = await _load_control_settings()
+    patch = {key: value for key, value in body.model_dump().items() if value is not None}
+    merged = merge_settings(current, patch)
+    return await _save_control_settings(merged)
+
+
+@api_router.post("/control/qa/pin")
+async def pin_qa(body: PinQaRequest):
+    doc = pin_document(body.model_dump())
+    try:
+        await db.pinned_qa.insert_one(dict(doc))
+        if doc.get("video_id"):
+            await db.question_answers.update_many(
+                {"video_id": doc["video_id"], "question": doc["question"]},
+                {"$set": {"pinned": True}},
+            )
+    except Exception as error:
+        logger.warning(f"pin persist skipped: {error}")
+    return doc
+
+
+@api_router.get("/control/qa/pinned")
+async def list_pinned_qa():
+    try:
+        rows = await db.pinned_qa.find({}, {"_id": 0}).sort("pinned_at", -1).to_list(50)
+        return {"items": rows, "count": len(rows)}
+    except Exception as error:
+        logger.warning(f"pinned list skipped: {error}")
+        return {"items": [], "count": 0}
+
+
+@api_router.get("/control/library/gaps")
+async def library_gaps():
+    try:
+        unprocessed = await db.videos.find(
+            {"transcript_processed": {"$ne": True}},
+            {"_id": 0, "video_id": 1, "title": 1, "channel_id": 1},
+        ).to_list(50)
+        return {"items": unprocessed, "count": len(unprocessed)}
+    except Exception as error:
+        logger.warning(f"library gaps skipped: {error}")
+        return {"items": [], "count": 0}
+
+
+@api_router.post("/mala/sync")
+async def mala_sync(body: MalaSyncRequest):
+    key = mala_day_key(body.device_id, body.day, body.mantra_id)
+    doc = {**key, **body.model_dump()}
+    try:
+        await db.mala_days.replace_one(key, doc, upsert=True)
+    except Exception as error:
+        logger.warning(f"mala sync skipped: {error}")
+    return summarize_day(doc)
+
+
+@api_router.get("/mala/day")
+async def mala_day(device_id: str, day: str, mantra_id: str = "ram"):
+    key = mala_day_key(device_id, day, mantra_id)
+    try:
+        doc = await db.mala_days.find_one(key, {"_id": 0})
+        if doc:
+            return summarize_day(doc)
+    except Exception as error:
+        logger.warning(f"mala day skipped: {error}")
+    return summarize_day({**key, "beads_today": 0, "cycles_today": 0, "current_in_cycle": 0})
+
 @api_router.get("/stats")
 async def get_stats():
     """Get database statistics"""
@@ -411,16 +562,19 @@ async def get_system_status():
 async def clear_processing_status():
     """Clear all processing status data"""
     try:
-        # Clear processing status collection
         await db.processing_status.delete_many({})
-        
         return {
+            "ok": True,
             "message": "Processing status cleared successfully",
             "timestamp": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        logger.error(f"Error clearing processing status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning(f"Error clearing processing status: {str(e)}")
+        return {
+            "ok": False,
+            "message": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 @api_router.get("/analytics/summary")
 async def get_analytics_summary():
@@ -765,6 +919,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_database():
+    try:
+        result = await bootstrap_database(db)
+        logger.info(f"database ready: {result}")
+    except Exception as error:
+        logger.warning(f"database bootstrap skipped: {error}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

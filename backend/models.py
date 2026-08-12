@@ -82,6 +82,38 @@ class MalaState(BaseModel):
     beads_per_cycle: int = 108
     mantra_id: str = "ram"
 
+class ControlSettingsPatch(BaseModel):
+    language: Optional[str] = None
+    beads_per_cycle: Optional[int] = None
+    mantra_id: Optional[str] = None
+    sandhya: Optional[bool] = None
+    japa_focus: Optional[bool] = None
+    notifications: Optional[bool] = None
+    processing_enabled: Optional[bool] = None
+    default_channel_id: Optional[str] = None
+
+
+class PinQaRequest(BaseModel):
+    question: str
+    answer: str
+    video_id: Optional[str] = ""
+    video_title: Optional[str] = ""
+    start_time: float = 0
+    timestamp_url: Optional[str] = ""
+    channel_id: Optional[str] = None
+
+
+class MalaSyncRequest(BaseModel):
+    device_id: str
+    day: str
+    mantra_id: str = "ram"
+    beads_today: int = 0
+    cycles_today: int = 0
+    current_in_cycle: int = 0
+    questions_today: int = 0
+    beads_per_cycle: int = 108
+    completed_cycle: bool = False
+
 class ProcessingStatus(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     status: str  # pending, processing, completed, failed

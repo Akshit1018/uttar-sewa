@@ -12,20 +12,29 @@ logger = logging.getLogger(__name__)
 class YouTubeService:
     def __init__(self):
         self.api_key = os.environ.get('YOUTUBE_API_KEY')
-        self.youtube = build('youtube', 'v3', developerKey=self.api_key)
+        self.youtube = None
+        if self.api_key:
+            self.youtube = build('youtube', 'v3', developerKey=self.api_key)
+        else:
+            logger.warning("YOUTUBE_API_KEY missing; YouTube ingest disabled")
+
+    def _client(self):
+        if self.youtube is None:
+            raise RuntimeError("YOUTUBE_API_KEY is not configured")
+        return self.youtube
         
     async def get_channel_videos(self, channel_username: str = "bhajanmarg") -> List[Dict[str, Any]]:
         """Get all videos from the channel"""
         try:
             # First get channel ID from username
-            channels_response = self.youtube.channels().list(
+            channels_response = self._client().channels().list(
                 part='id,contentDetails',
                 forUsername=channel_username
             ).execute()
             
             if not channels_response.get('items'):
                 # Try with channel handle instead
-                search_response = self.youtube.search().list(
+                search_response = self._client().search().list(
                     part='snippet',
                     q=channel_username,
                     type='channel',
@@ -37,7 +46,7 @@ class YouTubeService:
                     
                 channel_id = search_response['items'][0]['snippet']['channelId']
                 
-                channels_response = self.youtube.channels().list(
+                channels_response = self._client().channels().list(
                     part='id,contentDetails',
                     id=channel_id
                 ).execute()
@@ -52,7 +61,7 @@ class YouTubeService:
             next_page_token = None
             
             while True:
-                playlist_response = self.youtube.playlistItems().list(
+                playlist_response = self._client().playlistItems().list(
                     part='snippet',
                     playlistId=uploads_playlist_id,
                     maxResults=50,
@@ -62,7 +71,7 @@ class YouTubeService:
                 video_ids = [item['snippet']['resourceId']['videoId'] for item in playlist_response['items']]
                 
                 # Get detailed video information
-                videos_response = self.youtube.videos().list(
+                videos_response = self._client().videos().list(
                     part='snippet,contentDetails,statistics',
                     id=','.join(video_ids)
                 ).execute()
@@ -108,7 +117,7 @@ class YouTubeService:
         """Get video captions/transcripts"""
         try:
             # Get available caption tracks
-            captions_response = self.youtube.captions().list(
+            captions_response = self._client().captions().list(
                 part='snippet',
                 videoId=video_id
             ).execute()
@@ -137,7 +146,7 @@ class YouTubeService:
             language = selected_caption['snippet']['language']
             
             # Download caption content
-            caption_content = self.youtube.captions().download(
+            caption_content = self._client().captions().download(
                 id=caption_id,
                 tfmt='srv3'  # Timed text format with timestamps
             ).execute()
