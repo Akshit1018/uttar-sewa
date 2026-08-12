@@ -29,4 +29,13 @@ void main() {
     expect(find.text('लाइव गतिविधि'), findsOneWidget);
     expect(find.text('घड़ी'), findsOneWidget);
   });
+
+  testWidgets('settings tab shows bring-your-own-keys', (tester) async {
+    await tester.pumpWidget(const UttarSewaApp());
+    await tester.pump();
+    await tester.tap(find.text('सेटिंग'));
+    await tester.pumpAndSettle();
+    expect(find.text('अपनी कुंजी'), findsOneWidget);
+    expect(find.text('सेव कर चलाएँ'), findsOneWidget);
+  });
 }

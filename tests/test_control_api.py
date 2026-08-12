@@ -12,6 +12,7 @@ def test_schema_has_core_collections():
     assert "videos" in names
     assert "question_answers" in names
     assert "control_settings" in names
+    assert "control_secrets" in names
     assert "pinned_qa" in names
     assert "mala_days" in names
     assert INDEXES["question_answers"]

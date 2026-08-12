@@ -105,6 +105,10 @@ class ApiClient {
 
   Future<Map<String, dynamic>> saveSettings(Map<String, dynamic> patch) => _put('/control/settings', patch);
 
+  Future<Map<String, dynamic>> keys() => _get('/control/keys');
+
+  Future<Map<String, dynamic>> saveKeys(Map<String, dynamic> patch) => _put('/control/keys', patch);
+
   Future<List<Map<String, dynamic>>> pinned() async {
     final data = await _get('/control/qa/pinned');
     return (data['items'] as List? ?? const [])

@@ -21,7 +21,7 @@ from backend.models import (
     VideoModel, TranscriptSegment, QuestionAnswer,
     SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
     AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest,
-    CompanionQuery, ScrapeRequest, VideoMetaRequest, IngestRequest
+    CompanionQuery, ScrapeRequest, VideoMetaRequest, IngestRequest, ByokKeysPatch
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
@@ -50,7 +50,17 @@ from backend.services.control_store import (
     pin_document,
 )
 from backend.services.database import bootstrap_database
-from backend.db_schema import SETTINGS_DOC_ID
+from backend.db_schema import SETTINGS_DOC_ID, SECRETS_DOC_ID
+from backend.services.byok import (
+    apply_env,
+    memory_secrets,
+    merge_secrets,
+    public_keys_payload,
+    resolve_all,
+    secrets_document,
+    secrets_from_document,
+    set_memory_secrets,
+)
 from backend.services.public_enrichment import (
     catalog as public_catalog,
     companions_for_query,
@@ -109,12 +119,16 @@ async def health():
         mongo_ok = True
     except Exception:
         mongo_ok = False
+    keys = public_keys_payload(memory_secrets())
     return {
         "ok": True,
         "api": True,
         "database": mongo_ok,
         "ready": True,
         "enrichment": True,
+        "byok": True,
+        "keys_ready": keys["ready"],
+        "keys_configured": keys["keys_configured"],
     }
 
 @api_router.post("/process/start")
@@ -418,7 +432,10 @@ async def control_dashboard():
         logger.warning(f"control dashboard mongo skipped: {error}")
         api_ok = True
     settings = await _load_control_settings()
-    return dashboard_payload(stats, settings, pinned_count, api_ok)
+    payload = dashboard_payload(stats, settings, pinned_count, api_ok)
+    keys = public_keys_payload(memory_secrets())
+    payload["byok"] = {"ready": keys["ready"], "keys_configured": keys["keys_configured"]}
+    return payload
 
 
 @api_router.get("/control/settings")
@@ -432,6 +449,60 @@ async def put_control_settings(body: ControlSettingsPatch):
     patch = {key: value for key, value in body.model_dump().items() if value is not None}
     merged = merge_settings(current, patch)
     return await _save_control_settings(merged)
+
+
+async def _load_secrets() -> dict:
+    try:
+        doc = await db.control_secrets.find_one({"_id": SECRETS_DOC_ID})
+        stored = secrets_from_document(doc)
+        if stored:
+            set_memory_secrets(stored)
+            return stored
+    except Exception as error:
+        logger.warning(f"secrets read skipped: {error}")
+    return memory_secrets()
+
+
+async def _save_secrets(stored: dict) -> dict:
+    set_memory_secrets(stored)
+    try:
+        await db.control_secrets.replace_one(
+            {"_id": SECRETS_DOC_ID},
+            secrets_document(stored),
+            upsert=True,
+        )
+    except Exception as error:
+        logger.warning(f"secrets write skipped: {error}")
+    apply_env(resolve_all(stored))
+    _reconfigure_services()
+    return public_keys_payload(stored)
+
+
+def _reconfigure_services() -> None:
+    keys = resolve_all(memory_secrets())
+    processing_service.youtube_service.configure(api_key=keys.get("youtube"))
+    processing_service.llm_service.configure(
+        gemini_api_key=keys.get("gemini"),
+        mistral_api_key=keys.get("mistral"),
+    )
+    llm_service.configure(
+        gemini_api_key=keys.get("gemini"),
+        mistral_api_key=keys.get("mistral"),
+    )
+
+
+@api_router.get("/control/keys")
+async def get_control_keys():
+    stored = await _load_secrets()
+    return public_keys_payload(stored)
+
+
+@api_router.put("/control/keys")
+async def put_control_keys(body: ByokKeysPatch):
+    current = await _load_secrets()
+    patch = {key: value for key, value in body.model_dump().items() if value is not None}
+    merged = merge_secrets(current, patch)
+    return await _save_secrets(merged)
 
 
 @api_router.post("/control/qa/pin")
@@ -1083,6 +1154,9 @@ async def startup_database():
     try:
         result = await bootstrap_database(db)
         logger.info(f"database ready: {result}")
+        stored = await _load_secrets()
+        apply_env(resolve_all(stored))
+        _reconfigure_services()
     except Exception as error:
         logger.warning(f"database bootstrap skipped: {error}")
 

@@ -17,7 +17,19 @@ class YouTubeService:
         if self.fetcher is None and self.api_key:
             self.youtube = build("youtube", "v3", developerKey=self.api_key)
         elif self.fetcher is None:
-            logger.warning("YOUTUBE_API_KEY missing; inject a fetcher or POST /api/process/ingest")
+            logger.warning("YOUTUBE_API_KEY missing; inject a fetcher, paste a key in Settings, or POST /api/process/ingest")
+
+    def configure(self, api_key: Optional[str] = None) -> None:
+        """Rebuild the YouTube client after a BYOK save. No process restart."""
+        if self.fetcher is not None:
+            return
+        self.api_key = api_key or None
+        self.youtube = None
+        if self.api_key:
+            try:
+                self.youtube = build("youtube", "v3", developerKey=self.api_key)
+            except Exception as error:
+                logger.warning(f"YouTube client not rebuilt: {error}")
 
     def _client(self):
         if self.youtube is None:

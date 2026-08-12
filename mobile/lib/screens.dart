@@ -450,6 +450,8 @@ class SettingsScreen extends StatelessWidget {
           title: Text(state.t('डेटाबेस', 'Database')),
           subtitle: Text(asBool(state.health?['database']) ? 'uttar_sewa' : state.t('ऑफ़लाइन मोड', 'Offline mode')),
         ),
+        const SizedBox(height: 16),
+        ByokKeysCard(state: state),
         SwitchListTile(
           title: Text(state.t('सार्वजनिक साथी पाठ', 'Public companion texts')),
           value: asBool(state.dashboard?.controls['public_companions'], true),
@@ -512,6 +514,148 @@ class _ScrapeBoxState extends State<ScrapeBox> {
           const SizedBox(height: 8),
           Text(_preview!, style: const TextStyle(color: Colors.white70, height: 1.4)),
         ],
+      ],
+    );
+  }
+}
+
+class ByokKeysCard extends StatefulWidget {
+  const ByokKeysCard({super.key, required this.state});
+  final AppState state;
+
+  @override
+  State<ByokKeysCard> createState() => _ByokKeysCardState();
+}
+
+class _ByokKeysCardState extends State<ByokKeysCard> {
+  final Map<String, TextEditingController> _fields = {};
+  List<Map<String, dynamic>> _providers = const [];
+  bool _loading = false;
+  String? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _fields.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await widget.state.api.keys();
+      final items = (data['providers'] as List? ?? const [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      for (final item in items) {
+        final id = item['id'] as String? ?? '';
+        _fields.putIfAbsent(id, TextEditingController.new);
+      }
+      if (!mounted) return;
+      setState(() {
+        _providers = items;
+        _status = data['ready'] == true
+            ? widget.state.t('आवश्यक कुंजियाँ तैयार', 'Required keys ready')
+            : widget.state.t('कुंजी चिपकाएँ, सेव करें — रीस्टार्ट नहीं', 'Paste keys and save — no restart');
+      });
+    } catch (err) {
+      if (!mounted) return;
+      setState(() => _status = '$err');
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _loading = true);
+    try {
+      final patch = <String, dynamic>{};
+      for (final entry in _fields.entries) {
+        final value = entry.value.text.trim();
+        if (value.isNotEmpty) {
+          patch[entry.key] = value;
+        }
+      }
+      final data = await widget.state.api.saveKeys(patch);
+      for (final controller in _fields.values) {
+        controller.clear();
+      }
+      if (!mounted) return;
+      final items = (data['providers'] as List? ?? const [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      setState(() {
+        _providers = items;
+        _status = widget.state.t('सेव हो गया — सेवाएँ चल रही हैं', 'Saved — services are live');
+      });
+      await widget.state.refreshDashboard();
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(state.t('अपनी कुंजी', 'Bring your keys'), style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Text(
+          state.t(
+            'यूट्यूब / जेमिनी / मिस्ट्रल कुंजी चिपकाएँ। सेव के बाद सिस्टम खुद कॉन्फ़िगर हो जाता है।',
+            'Paste YouTube, Gemini, and Mistral keys. Save configures the app without a restart.',
+          ),
+          style: const TextStyle(color: Colors.white70, height: 1.4),
+        ),
+        if (_status != null) ...[
+          const SizedBox(height: 8),
+          Text(_status!, style: const TextStyle(color: Colors.amber, fontSize: 12)),
+        ],
+        const SizedBox(height: 8),
+        ..._providers.map((item) {
+          final id = item['id'] as String? ?? '';
+          final configured = item['configured'] == true;
+          final source = item['source'] as String? ?? 'missing';
+          final hint = item['hint'] as String? ?? '';
+          final label = state.isHindi ? (item['label_hi'] as String? ?? item['label']) : item['label'];
+          _fields.putIfAbsent(id, TextEditingController.new);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$label${item['required'] == true ? ' *' : ''}'),
+                Text(
+                  configured ? '$source · $hint' : state.t('नहीं लगी', 'Not set'),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                TextField(
+                  controller: _fields[id],
+                  obscureText: true,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    hintText: configured ? '••••••••' : state.t('कुंजी चिपकाएँ', 'Paste API key'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        FilledButton(
+          onPressed: _loading ? null : _save,
+          child: Text(state.t('सेव कर चलाएँ', 'Save and run')),
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }

@@ -9,9 +9,13 @@ import httpx
 logger = logging.getLogger(__name__)
 
 class LLMService:
-    def __init__(self):
-        self.gemini_api_key = os.environ.get('GEMINI_API_KEY')
-        self.mistral_api_key = os.environ.get('MISTRAL_API_KEY')
+    def __init__(self, gemini_api_key: Optional[str] = None, mistral_api_key: Optional[str] = None):
+        self.gemini_api_key = gemini_api_key if gemini_api_key is not None else os.environ.get("GEMINI_API_KEY")
+        self.mistral_api_key = mistral_api_key if mistral_api_key is not None else os.environ.get("MISTRAL_API_KEY")
+
+    def configure(self, gemini_api_key: Optional[str] = None, mistral_api_key: Optional[str] = None) -> None:
+        self.gemini_api_key = gemini_api_key or None
+        self.mistral_api_key = mistral_api_key or None
         
     async def understand_user_query(self, user_query: str) -> Dict[str, Any]:
         """Use Mistral to understand user query and convert to searchable format"""

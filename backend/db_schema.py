@@ -9,6 +9,7 @@ COLLECTIONS = {
     "qa": "question_answers",
     "processing": "processing_status",
     "settings": "control_settings",
+    "secrets": "control_secrets",
     "pins": "pinned_qa",
     "mala": "mala_days",
 }
@@ -37,3 +38,4 @@ INDEXES = {
 }
 
 SETTINGS_DOC_ID = "app"
+SECRETS_DOC_ID = "byok"

@@ -51,6 +51,8 @@ On API startup, `bootstrap_database` creates indexes and seeds curated Q&A if `q
 
 Set `MONGO_URL` (default `mongodb://localhost:27017`) and `DB_NAME` (default `uttar_sewa`). If Mongo is down, the API still serves search from the curated library and returns default control settings.
 
+You can also paste YouTube, Gemini, and Mistral keys in the app (**Settings → Bring your keys**). User keys override `.env` and take effect without a restart. GET `/api/control/keys` never returns the full secret.
+
 ## Control API
 
 | Method | Path | What it does |
@@ -58,6 +60,8 @@ Set `MONGO_URL` (default `mongodb://localhost:27017`) and `DB_NAME` (default `ut
 | GET | `/api/health` | API + database ping |
 | GET | `/api/control/dashboard` | stats + current controls |
 | GET/PUT | `/api/control/settings` | language, mala cycle, sandhya, processing |
+| GET/PUT | `/api/control/keys` | bring-your-own API keys (masked on read; live reconfigure) |
+| POST | `/api/process/ingest` | fill library from videos / video_ids / channel |
 | POST | `/api/control/qa/pin` | pin a cited clip |
 | GET | `/api/control/qa/pinned` | list pinned clips |
 | GET | `/api/control/library/gaps` | unprocessed videos |
@@ -78,7 +82,7 @@ Public companions come from [public-apis](https://github.com/public-apis/public-
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r backend/requirements.txt
-cp backend/.env.example backend/.env                 # fill in your keys
+cp backend/.env.example backend/.env                 # optional fallback keys; or paste them in Settings
 uvicorn backend.server:app --reload --port 8000
 ```
 

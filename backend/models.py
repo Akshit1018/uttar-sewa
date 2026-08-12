@@ -96,6 +96,13 @@ class ControlSettingsPatch(BaseModel):
     public_companions: Optional[bool] = None
 
 
+class ByokKeysPatch(BaseModel):
+    youtube: Optional[str] = None
+    gemini: Optional[str] = None
+    mistral: Optional[str] = None
+    google_translate: Optional[str] = None
+
+
 class PinQaRequest(BaseModel):
     question: str
     answer: str
