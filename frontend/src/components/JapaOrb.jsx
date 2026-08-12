@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HOLD_MS, DRAG_THRESHOLD_PX, DOUBLE_TAP_MS, progressLabel, snapToRightOffset } from '../lib/mala';
+import { HOLD_MS, DRAG_THRESHOLD_PX, DOUBLE_TAP_MS, progressLabel, resolveBeadsPerCycle, snapToRightOffset } from '../lib/mala';
 
 const HAND_KEY = 'uttar_sewa_orb_hand';
 
@@ -107,9 +107,10 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
       return;
     }
     pointer.current.lastTap = now;
+    const cycle = resolveBeadsPerCycle(state);
     const nextHint = (state.current_in_cycle || 0) + 1;
     onTap();
-    haptic(nextHint >= 108 ? [20, 40, 40] : 10);
+    haptic(nextHint >= cycle ? [20, 40, 40] : 10);
   };
 
   return (
@@ -129,7 +130,7 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
       <span className="japa-orb-count">{state.current_in_cycle || 0}</span>
       <span className="japa-orb-label">{label}</span>
       {state.completed_cycle ? (
-        <span className="japa-orb-cycle">108</span>
+        <span className="japa-orb-cycle">{resolveBeadsPerCycle(state)}</span>
       ) : null}
     </button>
   );

@@ -7,11 +7,14 @@ Uttar Sewa ("Northern Service") is a React + FastAPI app that answers spiritual 
 ## What it does
 
 - **Chat and search** — conversational Q&A with follow-ups, or a classic search page
+- **Grounded ask** — answers only from the video corpus, with timestamp citations
+- **Japa mala orb** — tap a bead, 108 (or 11/27/54) completes a mala, hold 2.5s to ask
+- **Sadhana** — named malas, daily sankalpa, sandhya reminder, japa focus (screen wake lock)
 - **Timestamp links** — real YouTube watch URLs (`watch?v=…&t=seconds`) that open in a new tab
 - **Channel groups** — filter by topic (bhakti, meditation, philosophy, peace) or search all
 - **Memory** — follow-up questions like "और कैसे?" use the previous turn
 - **Recommendations** — suggested questions from recent search history
-- **PWA extras** — favorites, voice input, offline cache, Hindi/English UI
+- **Mobile-first PWA** — bottom tabs on phone, sidebar on desktop, Add to Home Screen
 
 ## Architecture
 
@@ -59,7 +62,7 @@ Seekers ask the same questions that already live in long discourse videos. Uttar
 
 ## Status
 
-Working backend + frontend. Core search ranking, timestamp URLs, chat memory, and channel filters were updated in this release. YouTube processing still needs captions (or transcription) for a full 900+ video index; the curated library is used when the database is empty.
+Working backend + frontend. Search ranking, timestamp URLs, chat memory, grounded `/api/ask`, in-app japa orb, and a mobile-first shell are in this release. YouTube processing still needs captions (or transcription) for a full 900+ video index; the curated library is used when the database is empty. Native overlay / Watch / Whisper STT remain later.
 
 ## License
 

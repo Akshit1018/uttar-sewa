@@ -1,18 +1,49 @@
-import React, { useState } from 'react';
-import { Settings, Globe, Bell, Download, Trash2, Moon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Settings, Globe, Bell, Download, Trash2, Moon, DownloadCloud } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
 import PageShell from '../Layout/PageShell';
+import { readSettings, writeSettings } from '../../lib/practice';
+import { notificationService } from '../../services/notificationService';
 
 const SettingsPage = ({ language, setLanguage }) => {
-  const [notifications, setNotifications] = useState(true);
-  const [autoDownload, setAutoDownload] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
+  const [prefs, setPrefs] = useState(readSettings);
+  const [canInstall, setCanInstall] = useState(false);
+  const [installEvent, setInstallEvent] = useState(null);
+
+  useEffect(() => {
+    setPrefs(readSettings());
+    const onPrompt = (event) => {
+      event.preventDefault();
+      setInstallEvent(event);
+      setCanInstall(true);
+    };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt);
+  }, []);
+
+  const savePrefs = (patch) => {
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    writeSettings(next);
+    if (patch.notifications) {
+      notificationService.requestPermission();
+    }
+  };
 
   const clearData = () => {
     localStorage.clear();
+    window.dispatchEvent(new Event('uttar-sewa-practice'));
     alert(language === 'hi' ? 'डेटा साफ़ कर दिया गया' : 'Data cleared');
+  };
+
+  const installApp = async () => {
+    if (!installEvent) return;
+    installEvent.prompt();
+    await installEvent.userChoice;
+    setInstallEvent(null);
+    setCanInstall(false);
   };
 
   const settings = [
@@ -21,10 +52,9 @@ const SettingsPage = ({ language, setLanguage }) => {
       title: language === 'hi' ? 'भाषा' : 'Language',
       description: language === 'hi' ? 'ऐप की भाषा चुनें' : 'Choose app language',
       action: (
-        <Button 
+        <Button
           onClick={() => setLanguage(language === 'hi' ? 'en' : 'hi')}
           variant="outline"
-          size="sm"
           className="border-white/20 text-gray-300 hover:bg-white/10 rounded-xl"
         >
           {language === 'hi' ? 'English' : 'हिंदी'}
@@ -34,11 +64,11 @@ const SettingsPage = ({ language, setLanguage }) => {
     {
       icon: Bell,
       title: language === 'hi' ? 'सूचनाएं' : 'Notifications',
-      description: language === 'hi' ? 'नई सामग्री की सूचना पाएं' : 'Get notified of new content',
+      description: language === 'hi' ? 'माला पूर्ण और संध्या की सूचना' : 'Mala complete and sandhya reminders',
       action: (
-        <Switch 
-          checked={notifications} 
-          onCheckedChange={setNotifications}
+        <Switch
+          checked={Boolean(prefs.notifications)}
+          onCheckedChange={(value) => savePrefs({ notifications: value })}
         />
       )
     },
@@ -47,9 +77,9 @@ const SettingsPage = ({ language, setLanguage }) => {
       title: language === 'hi' ? 'ऑटो डाउनलोड' : 'Auto Download',
       description: language === 'hi' ? 'उत्तर स्वचालित रूप से सहेजें' : 'Automatically save answers',
       action: (
-        <Switch 
-          checked={autoDownload} 
-          onCheckedChange={setAutoDownload}
+        <Switch
+          checked={Boolean(prefs.autoDownload)}
+          onCheckedChange={(value) => savePrefs({ autoDownload: value })}
         />
       )
     },
@@ -58,9 +88,9 @@ const SettingsPage = ({ language, setLanguage }) => {
       title: language === 'hi' ? 'डार्क मोड' : 'Dark Mode',
       description: language === 'hi' ? 'डार्क थीम का उपयोग करें' : 'Use dark theme',
       action: (
-        <Switch 
-          checked={darkMode} 
-          onCheckedChange={setDarkMode}
+        <Switch
+          checked={Boolean(prefs.darkMode)}
+          onCheckedChange={(value) => savePrefs({ darkMode: value })}
         />
       )
     }
@@ -69,7 +99,6 @@ const SettingsPage = ({ language, setLanguage }) => {
   return (
     <PageShell>
       <div>
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Settings className="w-8 h-8 text-white" />
@@ -90,7 +119,17 @@ const SettingsPage = ({ language, setLanguage }) => {
           </CardContent>
         </Card>
 
-        {/* Settings List */}
+        {canInstall && (
+          <Card className="bg-white/5 border border-white/10 rounded-2xl mb-6">
+            <CardContent className="p-4">
+              <Button onClick={installApp} className="w-full bg-white text-black hover:bg-gray-100">
+                <DownloadCloud className="w-4 h-4 mr-2" />
+                {language === 'hi' ? 'होम स्क्रीन पर जोड़ें' : 'Add to Home Screen'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="space-y-4 mb-8">
           {settings.map((setting, index) => {
             const Icon = setting.icon;
@@ -117,7 +156,6 @@ const SettingsPage = ({ language, setLanguage }) => {
           })}
         </div>
 
-        {/* Danger Zone */}
         <Card className="bg-white/5 backdrop-blur-xl border border-red-500/20 rounded-2xl">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-3 text-lg">
@@ -127,12 +165,12 @@ const SettingsPage = ({ language, setLanguage }) => {
           </CardHeader>
           <CardContent>
             <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-              {language === 'hi' 
+              {language === 'hi'
                 ? 'यह सभी स्थानीय डेटा को हटा देगा, जिसमें आपकी खोज का इतिहास और पसंदीदा प्रश्न शामिल हैं।'
                 : 'This will remove all local data including your search history and favorite questions.'
               }
             </p>
-            <Button 
+            <Button
               onClick={clearData}
               variant="outline"
               className="border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-xl w-full"

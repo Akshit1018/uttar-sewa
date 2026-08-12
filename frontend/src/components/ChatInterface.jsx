@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Clock, Heart, HeartIcon, Mic, MicOff, Bot, User, Sparkles, Star } from 'lucide-react';
+import { Send, Loader2, Clock, Heart, HeartIcon, Mic, MicOff, Bot, User, Sparkles, Star, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
@@ -17,6 +17,7 @@ import { formatTimestamp } from '../lib/youtube';
 import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
 import ChannelSelector from './ChannelSelector';
 import { useChannels } from '../hooks/useChannels';
+import { shareCard } from '../lib/practice';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -329,6 +330,7 @@ const ChatInterface = ({ language }) => {
                         <h4 className="text-white text-sm font-medium leading-relaxed flex-1 min-w-0">
                           {result.question}
                         </h4>
+                        <div className="flex shrink-0">
                         <Button
                           onClick={() => handleFavoriteToggle(result)}
                           variant="ghost"
@@ -341,6 +343,19 @@ const ChatInterface = ({ language }) => {
                             <HeartIcon className="w-4 h-4" />
                           )}
                         </Button>
+                        <Button
+                          onClick={() => shareCard({
+                            question: result.question,
+                            answer: result.answer,
+                            timestampUrl: result.timestamp_url,
+                          })}
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-gray-400 hover:text-white"
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </Button>
+                        </div>
                       </div>
 
                       <p className="text-gray-300 text-xs leading-relaxed mb-3">

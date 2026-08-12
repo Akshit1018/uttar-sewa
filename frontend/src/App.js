@@ -17,6 +17,8 @@ import JapaOrb from "./components/JapaOrb";
 import JapaChatSheet from "./components/JapaChatSheet";
 import { useMala } from "./hooks/useMala";
 import { analyticsService } from "./services/analyticsService";
+import { msUntil, nextSandhya, readPractice, readSettings } from "./lib/practice";
+import { notificationService } from "./services/notificationService";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -26,7 +28,7 @@ const MainApp = () => {
   const [stats, setStats] = useState(null);
   const [language, setLanguage] = useState('hi'); // Default to Hindi as requested
   const [chatOpen, setChatOpen] = useState(false);
-  const { state: malaState, tap, undo, recordQuestion } = useMala();
+  const { state: malaState, tap, undo, recordQuestion, practice, reload } = useMala(language);
 
   useEffect(() => {
     loadStats();
@@ -56,13 +58,9 @@ const MainApp = () => {
         });
     }
 
-    // Handle app install prompt
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      // You can show install button here
-    });
+    if (readSettings().notifications || readPractice().sandhya) {
+      notificationService.requestPermission();
+    }
 
     // Performance monitoring
     if (window.performance && window.performance.timing) {
@@ -82,6 +80,31 @@ const MainApp = () => {
     );
     localStorage.setItem('previousLanguage', language);
   }, [language]);
+
+  useEffect(() => {
+    let sentinel;
+    const lock = async () => {
+      if (!practice.japaFocus || !navigator.wakeLock) return;
+      try {
+        sentinel = await navigator.wakeLock.request('screen');
+      } catch (error) {
+        // unsupported or battery saver
+      }
+    };
+    lock();
+    return () => {
+      if (sentinel) sentinel.release();
+    };
+  }, [practice.japaFocus]);
+
+  useEffect(() => {
+    if (!practice.sandhya) return undefined;
+    const upcoming = nextSandhya();
+    const timer = setTimeout(() => {
+      notificationService.showSandhyaNotification(upcoming.kind, language);
+    }, msUntil(upcoming.at));
+    return () => clearTimeout(timer);
+  }, [practice.sandhya, language]);
 
   const loadStats = async () => {
     try {
@@ -104,7 +127,7 @@ const MainApp = () => {
       case 'chat':
         return <ChatInterface language={language} />;
       case 'sadhana':
-        return <SadhanaDashboard language={language} state={malaState} />;
+        return <SadhanaDashboard language={language} state={malaState} onPracticeChange={reload} />;
       case 'search':
         return <SearchInterface language={language} />;
       case 'processing':
@@ -114,7 +137,7 @@ const MainApp = () => {
       case 'admin':
         return <AdminDashboard language={language} />;
       case 'profile':
-        return <ProfilePage language={language} />;
+        return <ProfilePage language={language} setCurrentView={setCurrentView} />;
       case 'about':
         return <AboutPage language={language} />;
       case 'terms':

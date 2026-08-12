@@ -79,6 +79,8 @@ class MalaState(BaseModel):
     current_in_cycle: int = 0
     questions_today: int = 0
     completed_cycle: bool = False
+    beads_per_cycle: int = 108
+    mantra_id: str = "ram"
 
 class ProcessingStatus(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

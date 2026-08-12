@@ -90,6 +90,31 @@ class NotificationService {
     });
   }
 
+  showMalaCompleteNotification(malasToday, language = 'hi') {
+    const title = language === 'hi' ? 'माला पूर्ण' : 'Mala complete';
+    const body = language === 'hi'
+      ? `आज ${malasToday} माला। संकल्प जारी रखें।`
+      : `${malasToday} mala(s) today. Keep the vow.`;
+    return this.showNotification(title, {
+      body,
+      tag: 'mala-complete',
+    });
+  }
+
+  showSandhyaNotification(kind, language = 'hi') {
+    const isMorning = kind === 'morning';
+    const title = language === 'hi'
+      ? (isMorning ? 'प्रातः संध्या' : 'सायं संध्या')
+      : (isMorning ? 'Morning sandhya' : 'Evening sandhya');
+    const body = language === 'hi'
+      ? 'एक माला का समय है। गोल पर टैप करें।'
+      : 'Time for a mala. Tap the orb.';
+    return this.showNotification(title, {
+      body,
+      tag: `sandhya-${kind}`,
+    });
+  }
+
   scheduleNotification(title, options, delay) {
     setTimeout(() => {
       this.showNotification(title, options);

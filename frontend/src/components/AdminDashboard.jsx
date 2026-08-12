@@ -407,6 +407,22 @@ const AdminDashboard = ({ language }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
+              {systemStatus && systemStatus.database.unprocessed_videos > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-white font-medium text-sm">
+                      {language === 'hi' ? 'कैप्शन रहित कतार' : 'Missing-caption queue'}
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      {language === 'hi'
+                        ? `${systemStatus.database.unprocessed_videos} वीडियो अभी उद्धृत नहीं हो सकते। कैप्शन या बाद में Whisper से ट्रांसक्रिप्ट चाहिए।`
+                        : `${systemStatus.database.unprocessed_videos} videos cannot be cited yet. They need captions or later Whisper transcripts.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {stats && stats.processed_videos === 0 && (
                 <div className="flex items-center gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                   <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Play, Clock, Sparkles, AlertCircle, Heart, HeartIcon, Mic, MicOff, History, Zap, Star, TrendingUp } from 'lucide-react';
+import { Search, Loader2, Play, Clock, Sparkles, AlertCircle, Heart, HeartIcon, Mic, MicOff, History, Zap, Star, TrendingUp, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -18,6 +18,7 @@ import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
 import ChannelSelector from './ChannelSelector';
 import { useChannels } from '../hooks/useChannels';
 import PageShell from './Layout/PageShell';
+import { shareCard } from '../lib/practice';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -454,6 +455,7 @@ const SearchInterface = ({ language }) => {
                     <CardTitle className="text-white text-base leading-relaxed font-semibold flex-1 mr-4">
                       {result.question}
                     </CardTitle>
+                    <div className="flex shrink-0">
                     <Button
                       onClick={() => handleFavoriteToggle(result)}
                       variant="ghost"
@@ -466,6 +468,19 @@ const SearchInterface = ({ language }) => {
                         <HeartIcon className="w-5 h-5" />
                       )}
                     </Button>
+                    <Button
+                      onClick={() => shareCard({
+                        question: result.question,
+                        answer: result.answer,
+                        timestampUrl: result.timestamp_url,
+                      })}
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-gray-400 hover:text-white"
+                    >
+                      <Share2 className="w-5 h-5" />
+                    </Button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">

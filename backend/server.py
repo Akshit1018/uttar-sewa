@@ -30,7 +30,15 @@ from backend.services.relevance_search import (
     expand_query, rank_answers, related_questions, library_as_qa, recommend_from_history
 )
 from backend.services.grounded_ask import grounded_ask
-from backend.services.mala_counter import BEADS_PER_CYCLE, HOLD_MS, apply_tap, apply_undo, summarize_day
+from backend.services.mala_counter import (
+    ALLOWED_CYCLE_LENGTHS,
+    BEADS_PER_CYCLE,
+    HOLD_MS,
+    apply_tap,
+    apply_undo,
+    named_malas,
+    summarize_day,
+)
 from backend.services.timestamp_urls import build_watch_url, format_timestamp_display
 from backend.services.channel_registry import list_channels, get_channel, topic_for_tags
 
@@ -261,8 +269,11 @@ async def ask_grounded(body: AskQuery):
 async def mala_config():
     return {
         "beads_per_cycle": BEADS_PER_CYCLE,
+        "allowed_cycle_lengths": list(ALLOWED_CYCLE_LENGTHS),
+        "named_malas": named_malas(),
         "hold_ms": HOLD_MS,
         "overlay": "in_app",
+        "sandhya": {"morning_hour": 6, "evening_hour": 18},
         "note": "System-wide overlay requires a native Android shell; iOS uses in-app orb + Live Activity later.",
     }
 

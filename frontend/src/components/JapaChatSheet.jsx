@@ -1,10 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { Loader2, Mic, MicOff, Send, Volume2, X } from 'lucide-react';
+import { Loader2, Mic, MicOff, Send, Share2, Volume2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useVoiceSearch } from '../hooks/useVoiceSearch';
 import { VideoTimestampLink } from './VideoTimestampLink';
 import { t } from '../utils/translations';
+import { shareCard } from '../lib/practice';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -118,45 +119,63 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
 
         {result && (
           <div className="mb-4 space-y-3 max-h-[40vh] overflow-y-auto custom-scrollbar">
-            <div className="flex items-start justify-between gap-2">
-              <p className={`text-sm leading-relaxed min-w-0 ${result.refused ? 'text-amber-200' : 'text-white'}`}>
-                {result.answer}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-white shrink-0"
-                onClick={() => speakAnswer(result.answer)}
-                aria-label={language === 'hi' ? 'उत्तर सुनें' : 'Hear answer'}
-              >
-                <Volume2 className="w-4 h-4" />
-              </Button>
-            </div>
             {(result.clips || []).map((clip, index) => (
               <div key={`${clip.source_question}-${index}`} className="bg-white/5 rounded-xl p-3 border border-white/10">
-                <p className="text-xs text-gray-300 mb-1">{clip.source_question}</p>
+                <p className="text-xs text-white font-medium mb-1">{clip.video_title || clip.source_question}</p>
+                {clip.citation_kind === 'curated' ? (
+                  <p className="text-xs text-amber-200 mb-2">
+                    {language === 'hi' ? 'संग्रहित शिक्षण, समय-चिह्न नहीं।' : 'Curated teaching, not a timestamped clip.'}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400 mb-2">
+                    {language === 'en' ? 'Original clip (Hindi/source audio).' : 'मूल क्लिप।'}
+                  </p>
+                )}
                 {clip.source_answer ? (
                   <p className="text-xs text-gray-500 mb-2 leading-relaxed">
                     “{(clip.source_answer || '').slice(0, 160)}{(clip.source_answer || '').length > 160 ? '…' : ''}”
                   </p>
                 ) : null}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <span className="text-xs text-gray-400 min-w-0">
-                    {clip.citation_kind === 'curated'
-                      ? (language === 'hi' ? 'संग्रहित शिक्षण' : 'Curated teaching')
-                      : clip.video_title}
-                  </span>
-                  <VideoTimestampLink
-                    videoId={clip.video_id}
-                    startTime={clip.start_time}
-                    timestampUrl={clip.timestamp_url}
-                    label={clip.formatted_start_time || t('watchVideo', language)}
-                    className="bg-white text-black text-xs h-8"
-                  />
-                </div>
+                <VideoTimestampLink
+                  videoId={clip.video_id}
+                  startTime={clip.start_time}
+                  timestampUrl={clip.timestamp_url}
+                  label={clip.formatted_start_time || t('watchVideo', language)}
+                  className="bg-white text-black text-xs w-full"
+                />
               </div>
             ))}
+            <div className="flex items-start justify-between gap-2">
+              <p className={`text-sm leading-relaxed min-w-0 ${result.refused ? 'text-amber-200' : 'text-white'}`}>
+                {result.answer}
+              </p>
+              <div className="flex shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-white"
+                  onClick={() => speakAnswer(result.answer)}
+                  aria-label={language === 'hi' ? 'उत्तर सुनें' : 'Hear answer'}
+                >
+                  <Volume2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-white"
+                  onClick={() => shareCard({
+                    question: history[history.length - 1] || '',
+                    answer: result.answer,
+                    timestampUrl: (result.clips && result.clips[0] && result.clips[0].timestamp_url) || '',
+                  })}
+                  aria-label={language === 'hi' ? 'कार्ड साझा करें' : 'Share card'}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 

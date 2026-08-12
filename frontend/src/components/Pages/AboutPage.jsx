@@ -21,10 +21,10 @@ const AboutPage = ({ language }) => {
     },
     {
       icon: Heart,
-      title: language === 'hi' ? 'सटीक समय चिह्न' : 'Precise Timestamps',
-      description: language === 'hi' 
-        ? 'वीडियो के सटीक समय पर जाकर उत्तर सुनें' 
-        : 'Jump to exact moments in videos for answers'
+      title: language === 'hi' ? 'साधना माला' : 'Sadhana mala',
+      description: language === 'hi'
+        ? 'गोल पर टैप = मनका। 108 = एक माला। दबाकर प्रवचन से पूछें।'
+        : 'Tap the orb for a bead. 108 is one mala. Hold to ask from the discourses.'
     },
     {
       icon: Users,
