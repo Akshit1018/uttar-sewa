@@ -59,3 +59,7 @@ def summarize_day(state: Dict) -> Dict:
         "questions_today": int((state or {}).get("questions_today") or 0),
         "hold_ms": HOLD_MS,
     }
+
+
+def sankalpa_remaining(malas_today: int, vow_malas: int) -> int:
+    return max(0, int(vow_malas or 0) - int(malas_today or 0))

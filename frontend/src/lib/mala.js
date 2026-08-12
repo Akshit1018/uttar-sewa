@@ -47,3 +47,17 @@ export function progressLabel(state) {
   const current = (state && state.current_in_cycle) || 0;
   return `${current}/${BEADS_PER_CYCLE}`;
 }
+
+export function snapToRightOffset(currentRight, viewportWidth, orbSize = 72, margin = 16) {
+  const width = viewportWidth || 360;
+  const centerFromRight = (currentRight || 0) + orbSize / 2;
+  const onRightHalf = centerFromRight < width / 2;
+  return onRightHalf ? margin : Math.max(margin, width - orbSize - margin);
+}
+
+export function sankalpaRemaining(malasToday, vowMalas) {
+  const vow = Math.max(0, Number(vowMalas) || 0);
+  const done = Math.max(0, Number(malasToday) || 0);
+  return Math.max(0, vow - done);
+}
+

@@ -1,14 +1,49 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { CircleDot } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
-import { BEADS_PER_CYCLE, progressLabel } from '../lib/mala';
+import { Button } from './ui/button';
+import { BEADS_PER_CYCLE, progressLabel, sankalpaRemaining } from '../lib/mala';
+
+const HAND_KEY = 'uttar_sewa_orb_hand';
+const VOW_KEY = 'uttar_sewa_sankalpa_malas';
 
 const SadhanaDashboard = ({ language, state }) => {
+  const [hand, setHand] = useState('right');
+  const [vow, setVow] = useState(1);
   const beads = state.beads_today || 0;
   const malas = state.cycles_today || 0;
   const current = state.current_in_cycle || 0;
   const questions = state.questions_today || 0;
   const percent = Math.round((current / BEADS_PER_CYCLE) * 100);
+  const remaining = sankalpaRemaining(malas, vow);
+
+  useEffect(() => {
+    try {
+      setHand(localStorage.getItem(HAND_KEY) || 'right');
+      setVow(Number(localStorage.getItem(VOW_KEY) || 1));
+    } catch (error) {
+      // ignore
+    }
+  }, []);
+
+  const saveHand = (value) => {
+    setHand(value);
+    try {
+      localStorage.setItem(HAND_KEY, value);
+    } catch (error) {
+      // ignore
+    }
+  };
+
+  const saveVow = (value) => {
+    const next = Math.max(0, Number(value) || 0);
+    setVow(next);
+    try {
+      localStorage.setItem(VOW_KEY, String(next));
+    } catch (error) {
+      // ignore
+    }
+  };
 
   const stats = [
     { value: beads, label: language === 'hi' ? 'आज के मनके' : 'Beads today' },
@@ -44,7 +79,33 @@ const SadhanaDashboard = ({ language, state }) => {
         ))}
       </div>
 
-      <div className="glass-card rounded-2xl p-4">
+      <div className="glass-card rounded-2xl p-4 mb-4">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span>{language === 'hi' ? 'आज का संकल्प' : 'Today’s sankalpa'}</span>
+          <span>{malas}/{vow} {language === 'hi' ? 'माला' : 'malas'}</span>
+        </div>
+        <p className="text-xs text-gray-400 mb-3">
+          {remaining === 0
+            ? (language === 'hi' ? 'आज का संकल्प पूरा।' : 'Today’s vow is complete.')
+            : (language === 'hi' ? `${remaining} माला शेष।` : `${remaining} mala(s) remaining.`)}
+        </p>
+        <div className="flex gap-2">
+          {[1, 3, 11].map((option) => (
+            <Button
+              key={option}
+              type="button"
+              variant="outline"
+              size="sm"
+              className={`border-white/20 text-xs ${vow === option ? 'bg-white text-black' : 'text-gray-300'}`}
+              onClick={() => saveVow(option)}
+            >
+              {option}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between text-sm mb-2">
           <span>{language === 'hi' ? 'इस माला की प्रगति' : 'This mala'}</span>
           <span>{percent}%</span>
@@ -52,10 +113,34 @@ const SadhanaDashboard = ({ language, state }) => {
         <div className="h-2 bg-white/10 rounded-full overflow-hidden">
           <div className="h-full bg-white" style={{ width: `${percent}%` }} />
         </div>
-        <p className="text-xs text-gray-500 mt-3">
+      </div>
+
+      <div className="glass-card rounded-2xl p-4">
+        <p className="text-sm mb-3">{language === 'hi' ? 'गोल की तरफ़' : 'Orb side'}</p>
+        <div className="flex gap-2 mb-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={`border-white/20 ${hand === 'left' ? 'bg-white text-black' : 'text-gray-300'}`}
+            onClick={() => saveHand('left')}
+          >
+            {language === 'hi' ? 'बायाँ हाथ' : 'Left hand'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={`border-white/20 ${hand === 'right' ? 'bg-white text-black' : 'text-gray-300'}`}
+            onClick={() => saveHand('right')}
+          >
+            {language === 'hi' ? 'दायाँ हाथ' : 'Right hand'}
+          </Button>
+        </div>
+        <p className="text-xs text-gray-500">
           {language === 'hi'
-            ? 'डबल-टैप से आखिरी मनका वापस। गोल को खींचकर हटाएँ। iOS अन्य ऐप्स के ऊपर नहीं तैर सकता; यह गोल इस ऐप में हमेशा रहता है।'
-            : 'Double-tap undoes the last bead. Drag the orb aside. iOS cannot float over other apps; this orb stays on top inside this app.'}
+            ? 'डबल-टैप से आखिरी मनका वापस। खींचने पर गोल किनारे चिपकता है। कोई स्ट्रीक या लीडरबोर्ड नहीं।'
+            : 'Double-tap undoes the last bead. Drag snaps the orb to an edge. No streaks or leaderboards.'}
         </p>
       </div>
     </div>

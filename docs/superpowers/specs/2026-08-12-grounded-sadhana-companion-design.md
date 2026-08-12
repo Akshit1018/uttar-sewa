@@ -243,3 +243,14 @@ Best mala feel, slowest path, throws away the working React app. Do not do this 
 ## Open decision (product, not tech)
 
 Treat **108** as the cycle length unless a later setting allows 11 / 27 / 54 / 108.
+
+## Research addendum (2026-08-12)
+
+Highest-leverage additions after surveying japa/rosary/tasbih apps and grounded-RAG UX:
+
+**Ship in PWA (this slice):** edge-tuck + idle dim, left-hand orb, sankalpa (daily mala vow, not a streak), citation quote snippet, system Hindi/English TTS for answers.
+
+**Native later:** volume-button / Action Button counting, Watch Crown + Live Activity +1, Android Bubbles for chat (not a raw overlay), PiP of the cited clip, TalkBack-safe volume keys.
+
+**Do not copy:** leaderboards, streak freeze, ads after 108, auto-chant that recites for you, public bhakti-score sharing.
+

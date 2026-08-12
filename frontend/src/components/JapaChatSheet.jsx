@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Loader2, Mic, MicOff, Send, X } from 'lucide-react';
+import { Loader2, Mic, MicOff, Send, Volume2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useVoiceSearch } from '../hooks/useVoiceSearch';
@@ -50,6 +50,14 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
   };
 
   askRef.current = handleAsk;
+
+  const speakAnswer = (text) => {
+    if (!text || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === 'hi' ? 'hi-IN' : 'en-US';
+    window.speechSynthesis.speak(utterance);
+  };
 
   const { isListening, isSupported, startListening, stopListening, error } = useVoiceSearch(
     (transcript) => {
@@ -110,12 +118,29 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
 
         {result && (
           <div className="mb-4 space-y-3 max-h-[40vh] overflow-y-auto custom-scrollbar">
-            <p className={`text-sm leading-relaxed ${result.refused ? 'text-amber-200' : 'text-white'}`}>
-              {result.answer}
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <p className={`text-sm leading-relaxed ${result.refused ? 'text-amber-200' : 'text-white'}`}>
+                {result.answer}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-white shrink-0"
+                onClick={() => speakAnswer(result.answer)}
+                aria-label={language === 'hi' ? 'उत्तर सुनें' : 'Hear answer'}
+              >
+                <Volume2 className="w-4 h-4" />
+              </Button>
+            </div>
             {(result.clips || []).map((clip, index) => (
               <div key={`${clip.source_question}-${index}`} className="bg-white/5 rounded-xl p-3 border border-white/10">
-                <p className="text-xs text-gray-300 mb-2">{clip.source_question}</p>
+                <p className="text-xs text-gray-300 mb-1">{clip.source_question}</p>
+                {clip.source_answer ? (
+                  <p className="text-xs text-gray-500 mb-2 leading-relaxed">
+                    “{(clip.source_answer || '').slice(0, 160)}{(clip.source_answer || '').length > 160 ? '…' : ''}”
+                  </p>
+                ) : null}
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-gray-400">
                     {clip.citation_kind === 'curated'

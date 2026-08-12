@@ -1,13 +1,36 @@
-import React, { useRef, useState } from 'react';
-import { HOLD_MS, DRAG_THRESHOLD_PX, DOUBLE_TAP_MS, progressLabel } from '../lib/mala';
+import React, { useEffect, useRef, useState } from 'react';
+import { HOLD_MS, DRAG_THRESHOLD_PX, DOUBLE_TAP_MS, progressLabel, snapToRightOffset } from '../lib/mala';
+
+const HAND_KEY = 'uttar_sewa_orb_hand';
 
 const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
   const pointer = useRef({ x: 0, y: 0, started: 0, dragging: false, lastTap: 0 });
   const [position, setPosition] = useState({ x: 20, y: 96 });
+  const [idle, setIdle] = useState(false);
   const holdTimer = useRef(null);
+  const idleTimer = useRef(null);
 
   const label = language === 'hi' ? 'माला' : 'Mala';
   const countLabel = progressLabel(state);
+
+  useEffect(() => {
+    try {
+      const hand = localStorage.getItem(HAND_KEY) || 'right';
+      const width = window.innerWidth || 360;
+      setPosition((current) => ({
+        ...current,
+        x: hand === 'left' ? snapToRightOffset(width, width) : 20,
+      }));
+    } catch (error) {
+      // ignore
+    }
+  }, []);
+
+  const bumpIdle = () => {
+    setIdle(false);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setIdle(true), 2500);
+  };
 
   const clearHold = () => {
     if (holdTimer.current) {
@@ -24,6 +47,7 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
 
   const onPointerDown = (event) => {
     event.currentTarget.setPointerCapture(event.pointerId);
+    bumpIdle();
     pointer.current = {
       x: event.clientX,
       y: event.clientY,
@@ -44,6 +68,7 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
     if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
       pointer.current.dragging = true;
       clearHold();
+      bumpIdle();
       setPosition((current) => ({
         x: Math.max(8, current.x - dx),
         y: Math.max(8, current.y - dy),
@@ -57,7 +82,15 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
     const heldFor = Date.now() - pointer.current.started;
     const wasHold = !holdTimer.current && heldFor >= HOLD_MS;
     clearHold();
-    if (pointer.current.dragging || wasHold) {
+    bumpIdle();
+    if (pointer.current.dragging) {
+      setPosition((current) => ({
+        ...current,
+        x: snapToRightOffset(current.x, window.innerWidth || 360),
+      }));
+      return;
+    }
+    if (wasHold) {
       return;
     }
     const now = Date.now();
@@ -76,12 +109,12 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
   return (
     <button
       type="button"
-      aria-label={`${label} ${countLabel}`}
+      aria-label={`${label} ${countLabel}. ${language === 'hi' ? 'टैप मनका, देर दबाएँ प्रश्न' : 'Tap for a bead, hold to ask'}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={clearHold}
-      className="japa-orb"
+      className={`japa-orb${idle ? ' japa-orb-idle' : ''}`}
       style={{ right: position.x, bottom: position.y }}
     >
       <span className="japa-orb-count">{state.current_in_cycle || 0}</span>

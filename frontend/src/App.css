@@ -97,6 +97,7 @@ body {
   touch-action: none;
   user-select: none;
   padding-bottom: env(safe-area-inset-bottom);
+  transition: opacity 0.4s ease;
 }
 
 .japa-orb-count {
@@ -110,6 +111,15 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.8;
+}
+
+.japa-orb-idle {
+  opacity: 0.45;
+}
+
+.japa-orb:focus-visible {
+  opacity: 1;
+  outline: 2px solid #fff;
 }
 
 .japa-orb-cycle {
