@@ -136,12 +136,13 @@ class _SearchScreenState extends State<SearchScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
-        DropdownButtonFormField<String>(
+        DropdownButton<String>(
+          isExpanded: true,
           value: state.channels.any((channel) => channel.id == state.channelId)
               ? state.channelId
               : (state.channels.isEmpty ? 'all' : state.channels.first.id),
           items: (state.channels.isEmpty
-                  ? [ChannelItem(id: 'all', name: 'All', nameHi: 'सभी')]
+                  ? const [ChannelItem(id: 'all', name: 'All', nameHi: 'सभी')]
                   : state.channels)
               .map(
                 (channel) => DropdownMenuItem(

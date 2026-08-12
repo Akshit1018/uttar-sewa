@@ -1,26 +1,17 @@
 # Uttar Sewa — Flutter
 
-Mobile client for the FastAPI backend. The **Control** tab is the operator dashboard: library stats, mala settings, pinned clips, and processing.
-
-Talks to `/api`, including `/api/control/*` and `/api/mala/*`.
-
-## Run
+Mobile client for the FastAPI backend. Android, iOS, and web shells are generated.
 
 ```bash
-# API (from repo root)
-pip install -r backend/requirements.txt
-uvicorn backend.server:app --reload --port 8000
-
-# App
 cd mobile
-flutter create . --project-name uttar_sewa --org sewa.uttar
 flutter pub get
+flutter test
+flutter analyze
 flutter run --dart-define=API_BASE=http://127.0.0.1:8000/api
 ```
 
-Android emulator: use `http://10.0.2.2:8000/api` as `API_BASE`.
+Android emulator: `http://10.0.2.2:8000/api`.
 
-`flutter create .` generates `android/` and `ios/` once. Do not commit those until you have run it locally.
 
 ## Tabs
 
