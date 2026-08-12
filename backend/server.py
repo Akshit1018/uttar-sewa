@@ -165,12 +165,15 @@ def _normalize_qa_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def _load_qa_database() -> List[Dict[str, Any]]:
-    qa_docs = await db.question_answers.find().to_list(2000)
-    qa_database = [_normalize_qa_doc(doc) for doc in qa_docs if doc.get("question")]
-    if not qa_database:
+    try:
+        qa_docs = await db.question_answers.find().to_list(2000)
+        qa_database = [_normalize_qa_doc(doc) for doc in qa_docs if doc.get("question")]
+        if qa_database:
+            return qa_database
         logger.warning("No Q&A documents found in database; using curated library")
-        return library_as_qa()
-    return qa_database
+    except Exception as error:
+        logger.warning(f"qa load skipped: {error}")
+    return library_as_qa()
 
 
 def _to_search_result(answer: Dict[str, Any], video: Optional[Dict[str, Any]], related: List[str]) -> SearchResult:
@@ -243,7 +246,10 @@ async def search_questions(query: SearchQuery):
             try:
                 video = None
                 if answer.get("video_id"):
-                    video = await db.videos.find_one({"video_id": answer["video_id"]})
+                    try:
+                        video = await db.videos.find_one({"video_id": answer["video_id"]})
+                    except Exception:
+                        video = None
                 related = related_questions(answer, qa_database, limit=3)
                 results.append(_to_search_result(answer, video, related))
             except Exception as e:
@@ -572,8 +578,15 @@ async def get_stats():
             "processing_progress": f"{processed_videos}/{video_count}" if video_count > 0 else "0/0"
         }
     except Exception as e:
-        logger.error(f"Error getting stats: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning(f"Error getting stats: {str(e)}")
+        return {
+            "total_videos": 0,
+            "processed_videos": 0,
+            "total_qa_pairs": 0,
+            "total_transcript_segments": 0,
+            "processing_progress": "0/0",
+            "library": "curated",
+        }
 
 @api_router.get("/videos", response_model=List[VideoModel])
 async def get_videos(limit: int = 20, skip: int = 0):
@@ -620,8 +633,19 @@ async def get_suggested_questions():
         }
         
     except Exception as e:
-        logger.error(f"Error getting suggested questions: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning(f"Error getting suggested questions: {str(e)}")
+        defaults = [
+            "जीवन का उद्देश्य क्या है?",
+            "ध्यान कैसे करें?",
+            "मानसिक शांति कैसे पाएं?",
+            "आध्यात्मिक जीवन कैसे जिएं?",
+            "गुरु की आवश्यकता क्यों है?",
+        ]
+        return {
+            "suggested_questions": defaults,
+            "note": "curated library",
+            "real_questions_count": 0,
+        }
 
 @api_router.get("/system/status")
 async def get_system_status():

@@ -115,5 +115,10 @@ def test_control_http_endpoints_work_without_mongo():
     blocked = client.post("/api/control/scrape", json={"url": "http://127.0.0.1/secret"})
     assert blocked.status_code == 400
 
+    search = client.post("/api/search", json={"query": "ध्यान", "language": "hi", "limit": 2})
+    assert search.status_code == 200
+    assert isinstance(search.json(), list)
+    assert search.json()
+
     cleared = client.post("/api/process/clear")
     assert cleared.status_code == 200
