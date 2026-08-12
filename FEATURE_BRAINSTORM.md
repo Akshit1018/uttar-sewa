@@ -267,9 +267,11 @@ This platform could become the **"Google for Spiritual Knowledge"** - the first 
 The current application has already achieved MVP status with enterprise-grade features. The above roadmap provides a clear path for evolution into a comprehensive spiritual knowledge platform that could serve millions of seekers worldwide.
 
 **Next Immediate Actions:**
-1. Audio transcription for videos without captions
-2. Persist real channel IDs from YouTube (beyond topic groups)
-3. Measure search success rate on a labeled question set
-4. Keep social features in a later phase
+1. Grounded `/ask` — answer only from video chunks, with timestamp citations, refuse when the corpus has nothing
+2. In-app japa orb — tap = bead (108 = one mala), hold 2–3s = chat + voice
+3. Audio transcription for videos without captions (otherwise citations cannot be real)
+4. Native shell later — Android overlay; iOS Live Activity / Watch (iOS cannot draw over other apps)
+
+See `docs/superpowers/specs/2026-08-12-grounded-sadhana-companion-design.md` for the full product brainstorm.
 
 The foundation is solid, the vision is clear, and the potential is limitless! 🚀✨
