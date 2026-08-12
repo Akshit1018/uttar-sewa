@@ -12,7 +12,8 @@ The **control dashboard** in the Flutter app talks to `/api/control/*` and the M
 - **Grounded ask** — answers only from the video corpus, with timestamp citations
 - **Japa mala orb** — tap a bead; 11 / 27 / 54 / 108 completes a mala; hold 2.5s to ask
 - **Sadhana** — named malas (Ram Ram, Hare Krishna, Om), daily counts synced to the API
-- **Control dashboard** — library stats, mala settings, pin clips, start/clear processing
+- **Control dashboard** — library stats, mala settings, pin clips, start/clear processing, public scrape
+- **Public companions** — Gita verse, Wikipedia, dictionary, Open Library, sandhya times (labeled, never mixed into the video answer)
 - **Timestamp links** — real YouTube watch URLs (`watch?v=…&t=seconds`)
 - **Channel groups** — filter by topic (bhakti, meditation, philosophy, peace)
 - **Web PWA** — the React client in `frontend/` still works for browsers
@@ -27,6 +28,7 @@ backend/server.py                API routes
 backend/db_schema.py             Mongo collections + indexes
 backend/services/database.py     bootstrap indexes + seed curated Q&A
 backend/services/control_store.py control dashboard payload / settings
+backend/services/public_enrichment.py  Gita/Wikipedia/dictionary/sandhya/Open Library + Scrapling fetch
 backend/spiritual_qa_content.py  curated Q&A fallback when the DB is empty
 tests/                           unit + API tests (Mongo optional)
 ```
@@ -63,6 +65,13 @@ Set `MONGO_URL` (default `mongodb://localhost:27017`) and `DB_NAME` (default `ut
 | GET | `/api/mala/day` | load today's mala |
 | POST | `/api/process/start` | start ingest (disabled if processing is off) |
 | POST | `/api/process/clear` | clear ingest status |
+| GET | `/api/enrich/catalog` | public-apis sources used by the app |
+| GET | `/api/enrich/today` | daily Gita verse + Varanasi sunrise/sunset |
+| POST | `/api/enrich/companions` | corrective-RAG public cards for a question |
+| POST | `/api/control/scrape` | Scrapling/httpx fetch of an allowlisted public page |
+| POST | `/api/control/enrich/video` | YouTube oEmbed metadata |
+
+Public companions come from [public-apis](https://github.com/public-apis/public-apis). HTML fetch uses [Scrapling](https://github.com/D4Vinci/Scrapling) when that package and its extras are installed; otherwise httpx. The companion cards follow the corrective-RAG pattern from [awesome-llm-apps](https://github.com/Shubhamsaboo/awesome-llm-apps): extra sources are graded and labeled, and they **never** replace a video citation.
 
 ## Run locally
 

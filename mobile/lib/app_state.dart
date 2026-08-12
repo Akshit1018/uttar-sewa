@@ -15,6 +15,9 @@ class AppState extends ChangeNotifier {
   List<ChannelItem> channels = const [];
   List<Map<String, dynamic>> pinned = const [];
   List<Map<String, dynamic>> gaps = const [];
+  List<Map<String, dynamic>> catalog = const [];
+  List<CompanionCard> companions = const [];
+  TodayEnrichment? today;
   MalaState mala = const MalaState();
   ControlDashboard? dashboard;
   Map<String, dynamic>? health;
@@ -44,6 +47,10 @@ class AppState extends ChangeNotifier {
       channels = await api.channels();
       health = await api.health();
       await refreshDashboard();
+      try {
+        today = await api.today(language: language);
+        catalog = await api.enrichCatalog();
+      } catch (_) {}
     } catch (err) {
       error = err.toString();
     }
@@ -109,6 +116,13 @@ class AppState extends ChangeNotifier {
     mala = mala.copyWith(questionsToday: mala.questionsToday + 1);
     await persistMala();
     notifyListeners();
+    final allow = asBool(dashboard?.controls['public_companions'], true);
+    if (allow) {
+      try {
+        companions = await api.companions(query: query, language: language);
+        notifyListeners();
+      } catch (_) {}
+    }
     return result;
   }
 

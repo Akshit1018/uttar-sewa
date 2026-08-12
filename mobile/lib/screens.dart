@@ -80,6 +80,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPin: () => state.pinHit(hit),
                 ),
               )),
+          if (state.companions.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(state.t('सार्वजनिक पाठ (वीडियो नहीं)', 'Public texts (not videos)'), style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ...state.companions.map((card) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: CompanionTile(card: card, state: state),
+                )),
+          ],
         ],
       ],
     );
@@ -218,6 +227,16 @@ class SadhanaScreen extends StatelessWidget {
           },
           child: Text(state.t('वापस', 'Undo')),
         ),
+        if (state.today?.gita != null) ...[
+          const SizedBox(height: 24),
+          Text(state.t('आज का श्लोक', "Today's verse"), style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          CompanionTile(card: state.today!.gita!, state: state),
+        ],
+        if (state.today?.sandhya != null) ...[
+          const SizedBox(height: 12),
+          CompanionTile(card: state.today!.sandhya!, state: state),
+        ],
       ],
     );
   }
@@ -315,6 +334,12 @@ class ControlDashboardScreen extends StatelessWidget {
             value: asBool(controls['processing_enabled'], true),
             onChanged: (value) => state.updateControl({'processing_enabled': value}),
           ),
+          SwitchListTile(
+            title: Text(state.t('सार्वजनिक साथी पाठ', 'Public companion texts')),
+            subtitle: Text(state.t('गीता / विकिपीडिया — वीडियो उत्तर नहीं', 'Gita / Wikipedia — not the video answer')),
+            value: asBool(controls['public_companions'], true),
+            onChanged: (value) => state.updateControl({'public_companions': value}),
+          ),
           const SizedBox(height: 8),
           FilledButton(
             onPressed: () => _run(context, () async {
@@ -355,6 +380,18 @@ class ControlDashboardScreen extends StatelessWidget {
                   subtitle: Text('${item['video_id'] ?? ''}'),
                 ),
               ),
+          const SizedBox(height: 16),
+          Text(state.t('सार्वजनिक स्रोत', 'Public sources'), style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          ...state.catalog.map(
+            (item) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('${item['name'] ?? item['id'] ?? ''}'),
+              subtitle: Text('${item['endpoint'] ?? ''}'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ScrapeBox(state: state),
         ],
       ),
     );
@@ -384,6 +421,68 @@ class SettingsScreen extends StatelessWidget {
           title: Text(state.t('डेटाबेस', 'Database')),
           subtitle: Text(asBool(state.health?['database']) ? 'uttar_sewa' : state.t('ऑफ़लाइन मोड', 'Offline mode')),
         ),
+        SwitchListTile(
+          title: Text(state.t('सार्वजनिक साथी पाठ', 'Public companion texts')),
+          value: asBool(state.dashboard?.controls['public_companions'], true),
+          onChanged: (value) => state.updateControl({'public_companions': value}),
+        ),
+      ],
+    );
+  }
+}
+
+class ScrapeBox extends StatefulWidget {
+  const ScrapeBox({super.key, required this.state});
+  final AppState state;
+
+  @override
+  State<ScrapeBox> createState() => _ScrapeBoxState();
+}
+
+class _ScrapeBoxState extends State<ScrapeBox> {
+  final _controller = TextEditingController(text: 'https://en.wikipedia.org/wiki/Karma');
+  String? _preview;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run() async {
+    setState(() => _loading = true);
+    try {
+      final data = await widget.state.api.scrape(_controller.text.trim());
+      if (!mounted) return;
+      setState(() => _preview = '${data['title'] ?? ''}\n${data['text'] ?? ''}');
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
+          decoration: InputDecoration(
+            hintText: 'https://en.wikipedia.org/wiki/Karma',
+            suffixIcon: IconButton(onPressed: _loading ? null : _run, icon: const Icon(Icons.download)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(state.t('केवल सार्वजनिक allowlist (विकिपीडिया, गीता, Open Library)', 'Allowlisted public hosts only (Wikipedia, Gita, Open Library)'), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        if (_preview != null) ...[
+          const SizedBox(height: 8),
+          Text(_preview!, style: const TextStyle(color: Colors.white70, height: 1.4)),
+        ],
       ],
     );
   }

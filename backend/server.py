@@ -20,7 +20,8 @@ import uuid
 from backend.models import (
     VideoModel, TranscriptSegment, QuestionAnswer,
     SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
-    AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest
+    AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest,
+    CompanionQuery, ScrapeRequest, VideoMetaRequest
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
@@ -50,6 +51,18 @@ from backend.services.control_store import (
 )
 from backend.services.database import bootstrap_database
 from backend.db_schema import SETTINGS_DOC_ID
+from backend.services.public_enrichment import (
+    catalog as public_catalog,
+    companions_for_query,
+    fetch_books,
+    fetch_definition,
+    fetch_gita,
+    fetch_wikipedia,
+    fetch_youtube_meta,
+    scrape_public_page,
+    today_bundle,
+    daily_gita_ref,
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -60,7 +73,7 @@ client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=2000)
 db = client[os.environ.get('DB_NAME', 'uttar_sewa')]
 
 # Create the main app without a prefix
-app = FastAPI(title="Uttar Sewa API", version="2.2.0")
+app = FastAPI(title="Uttar Sewa API", version="2.3.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -84,6 +97,7 @@ async def root():
         "flutter": True,
         "control_dashboard": "/api/control/dashboard",
         "health": "/api/health",
+        "enrich": "/api/enrich/today",
     }
 
 
@@ -100,6 +114,7 @@ async def health():
         "api": True,
         "database": mongo_ok,
         "ready": True,
+        "enrichment": True,
     }
 
 @api_router.post("/process/start")
@@ -283,7 +298,7 @@ async def ask_grounded(body: AskQuery):
                 "top_score": 0,
             }
         qa_database = await _load_qa_database()
-        return grounded_ask(
+        result = grounded_ask(
             body.query,
             corpus=qa_database,
             conversation_history=body.conversation_history,
@@ -291,6 +306,14 @@ async def ask_grounded(body: AskQuery):
             limit=body.limit,
             channel_id=body.channel_id,
         )
+        result["companions"] = []
+        if body.include_companions:
+            try:
+                result["companions"] = companions_for_query(body.query, body.language or "hi")
+            except Exception as enrich_error:
+                logger.warning(f"public companions skipped: {enrich_error}")
+                result["companions"] = []
+        return result
     except Exception as e:
         logger.error(f"Error in grounded ask: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -442,6 +465,95 @@ async def mala_day(device_id: str, day: str, mantra_id: str = "ram"):
     except Exception as error:
         logger.warning(f"mala day skipped: {error}")
     return summarize_day({**key, "beads_today": 0, "cycles_today": 0, "current_in_cycle": 0})
+
+
+@api_router.get("/enrich/catalog")
+async def enrich_catalog():
+    return {
+        "items": public_catalog(),
+        "scrapling": "https://github.com/D4Vinci/Scrapling",
+        "llm_apps": "https://github.com/Shubhamsaboo/awesome-llm-apps",
+        "public_apis": "https://github.com/public-apis/public-apis",
+        "note": "Companions are labeled public text. They never replace a video citation.",
+    }
+
+
+@api_router.get("/enrich/today")
+async def enrich_today(language: str = "hi"):
+    try:
+        return today_bundle(language=language if language in ("hi", "en") else "hi")
+    except Exception as error:
+        logger.warning(f"enrich today skipped: {error}")
+        return {"gita": None, "sandhya": None, "catalog": public_catalog(), "error": str(error)}
+
+
+@api_router.get("/enrich/gita")
+async def enrich_gita(chapter: Optional[int] = None, verse: Optional[int] = None, language: str = "hi"):
+    try:
+        if chapter is None or verse is None:
+            chapter, verse = daily_gita_ref()
+        return fetch_gita(int(chapter), int(verse), language=language if language in ("hi", "en") else "hi")
+    except Exception as error:
+        logger.warning(f"gita fetch skipped: {error}")
+        raise HTTPException(status_code=502, detail="Gita API unavailable")
+
+
+@api_router.get("/enrich/define")
+async def enrich_define(q: str, language: str = "hi"):
+    try:
+        return fetch_definition(q)
+    except Exception as error:
+        logger.warning(f"dictionary skipped: {error}")
+        raise HTTPException(status_code=502, detail="Dictionary API unavailable")
+
+
+@api_router.get("/enrich/wiki")
+async def enrich_wiki(q: str, language: str = "hi"):
+    try:
+        return fetch_wikipedia(q, language=language if language in ("hi", "en") else "hi")
+    except Exception as error:
+        logger.warning(f"wikipedia skipped: {error}")
+        raise HTTPException(status_code=502, detail="Wikipedia API unavailable")
+
+
+@api_router.get("/enrich/books")
+async def enrich_books(q: str):
+    try:
+        return {"items": fetch_books(q)}
+    except Exception as error:
+        logger.warning(f"open library skipped: {error}")
+        raise HTTPException(status_code=502, detail="Open Library unavailable")
+
+
+@api_router.post("/enrich/companions")
+async def enrich_companions(body: CompanionQuery):
+    """Corrective-RAG style public cards. Never mixed into the video answer."""
+    try:
+        cards = companions_for_query(body.query, body.language or "hi")
+        return {"items": cards, "count": len(cards), "source": "public"}
+    except Exception as error:
+        logger.warning(f"companions skipped: {error}")
+        return {"items": [], "count": 0, "source": "public"}
+
+
+@api_router.post("/control/scrape")
+async def control_scrape(body: ScrapeRequest):
+    try:
+        return scrape_public_page(body.url)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except Exception as error:
+        logger.warning(f"scrape skipped: {error}")
+        raise HTTPException(status_code=502, detail="Public scrape failed")
+
+
+@api_router.post("/control/enrich/video")
+async def control_enrich_video(body: VideoMetaRequest):
+    try:
+        return fetch_youtube_meta(body.video_id)
+    except Exception as error:
+        logger.warning(f"youtube oembed skipped: {error}")
+        raise HTTPException(status_code=502, detail="YouTube oEmbed unavailable")
 
 @api_router.get("/stats")
 async def get_stats():

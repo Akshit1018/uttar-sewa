@@ -155,4 +155,31 @@ class ApiClient {
       'timestamp_url': hit.timestampUrl,
     }) as Map<String, dynamic>;
   }
+
+  Future<TodayEnrichment> today({required String language}) async {
+    return TodayEnrichment.fromJson(await _get('/enrich/today', {'language': language}));
+  }
+
+  Future<List<CompanionCard>> companions({required String query, required String language}) async {
+    final data = await _post('/enrich/companions', {'query': query, 'language': language}) as Map<String, dynamic>;
+    return (data['items'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => CompanionCard.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> scrape(String url) async {
+    return await _post('/control/scrape', {'url': url}) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> videoMeta(String videoId) async {
+    return await _post('/control/enrich/video', {'video_id': videoId}) as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> enrichCatalog() async {
+    final data = await _get('/enrich/catalog');
+    return (data['items'] as List? ?? const [])
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
 }

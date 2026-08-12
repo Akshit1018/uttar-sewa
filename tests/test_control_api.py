@@ -23,6 +23,7 @@ def test_default_settings_are_controllable():
     assert settings["language"] == "hi"
     assert settings["beads_per_cycle"] == 108
     assert settings["processing_enabled"] is True
+    assert settings["public_companions"] is True
     assert settings["sandhya"] is True
 
 
@@ -60,6 +61,7 @@ def test_dashboard_payload_shape():
     assert payload["controls"]["language"] == "hi"
     assert "named_malas" in payload["controls"]
     assert payload["database"] == "uttar_sewa"
+    assert payload["enrichment"]["listed_in"].endswith("public-apis")
 
 
 def test_control_http_endpoints_work_without_mongo():
@@ -103,6 +105,15 @@ def test_control_http_endpoints_work_without_mongo():
     gaps = client.get("/api/control/library/gaps")
     assert gaps.status_code == 200
     assert "items" in gaps.json()
+
+    catalog = client.get("/api/enrich/catalog")
+    assert catalog.status_code == 200
+    ids = {item["id"] for item in catalog.json()["items"]}
+    assert "gita" in ids
+    assert catalog.json()["public_apis"].endswith("public-apis")
+
+    blocked = client.post("/api/control/scrape", json={"url": "http://127.0.0.1/secret"})
+    assert blocked.status_code == 400
 
     cleared = client.post("/api/process/clear")
     assert cleared.status_code == 200

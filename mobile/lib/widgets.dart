@@ -124,6 +124,38 @@ class _JapaOrbState extends State<JapaOrb> {
   }
 }
 
+class CompanionTile extends StatelessWidget {
+  const CompanionTile({super.key, required this.card, required this.state});
+
+  final CompanionCard card;
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF1A1A1A),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(card.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(card.text, style: const TextStyle(color: Colors.white70, height: 1.4)),
+            const SizedBox(height: 8),
+            Text(card.attribution, style: const TextStyle(color: Colors.amber, fontSize: 12)),
+            if (card.url.isNotEmpty)
+              TextButton(
+                onPressed: () => state.openUrl(card.url),
+                child: Text(state.t('स्रोत खोलें', 'Open source')),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class StatCard extends StatelessWidget {
   const StatCard({super.key, required this.label, required this.value});
 

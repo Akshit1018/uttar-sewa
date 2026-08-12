@@ -17,6 +17,7 @@ def default_settings() -> Dict[str, Any]:
         "japa_focus": False,
         "notifications": True,
         "processing_enabled": True,
+        "public_companions": True,
         "default_channel_id": "all",
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -75,6 +76,7 @@ def dashboard_payload(
             "sandhya": bool(settings.get("sandhya")),
             "japa_focus": bool(settings.get("japa_focus")),
             "processing_enabled": bool(settings.get("processing_enabled")),
+            "public_companions": bool(settings.get("public_companions", True)),
             "default_channel_id": settings.get("default_channel_id"),
             "named_malas": named_malas(),
             "allowed_cycle_lengths": list(ALLOWED_CYCLE_LENGTHS),
@@ -82,6 +84,11 @@ def dashboard_payload(
         "library": {
             "has_citations": qa > 0 or videos > 0,
             "needs_captions": int(stats.get("unprocessed_videos") or 0),
+        },
+        "enrichment": {
+            "listed_in": "https://github.com/public-apis/public-apis",
+            "scraper": "https://github.com/D4Vinci/Scrapling",
+            "rag_pattern": "https://github.com/Shubhamsaboo/awesome-llm-apps",
         },
     }
 

@@ -49,11 +49,12 @@ class SearchHit {
 }
 
 class AskResult {
-  const AskResult({required this.answer, required this.refused, required this.clips});
+  const AskResult({required this.answer, required this.refused, required this.clips, this.companions = const []});
 
   final String answer;
   final bool refused;
   final List<SearchHit> clips;
+  final List<CompanionCard> companions;
 
   factory AskResult.fromJson(Map<String, dynamic> json) {
     final clips = <SearchHit>[];
@@ -69,10 +70,66 @@ class AskResult {
         }));
       }
     }
+    final companions = <CompanionCard>[];
+    for (final item in (json['companions'] as List? ?? const [])) {
+      if (item is Map) {
+        companions.add(CompanionCard.fromJson(Map<String, dynamic>.from(item)));
+      }
+    }
     return AskResult(
       answer: json['answer'] as String? ?? '',
       refused: asBool(json['refused']),
       clips: clips,
+      companions: companions,
+    );
+  }
+}
+
+class CompanionCard {
+  const CompanionCard({
+    required this.kind,
+    required this.title,
+    required this.text,
+    required this.url,
+    required this.attribution,
+  });
+
+  final String kind;
+  final String title;
+  final String text;
+  final String url;
+  final String attribution;
+
+  factory CompanionCard.fromJson(Map<String, dynamic> json) {
+    return CompanionCard(
+      kind: json['kind'] as String? ?? 'public',
+      title: json['title'] as String? ?? '',
+      text: json['text'] as String? ?? '',
+      url: json['url'] as String? ?? '',
+      attribution: json['attribution'] as String? ?? 'public text — not from videos',
+    );
+  }
+}
+
+class TodayEnrichment {
+  const TodayEnrichment({this.gita, this.sandhya, this.disclaimer = ''});
+
+  final CompanionCard? gita;
+  final CompanionCard? sandhya;
+  final String disclaimer;
+
+  factory TodayEnrichment.fromJson(Map<String, dynamic> json) {
+    CompanionCard? card(Object? raw) {
+      if (raw is Map && (raw['text'] as String? ?? '').isNotEmpty) {
+        return CompanionCard.fromJson(Map<String, dynamic>.from(raw));
+      }
+      return null;
+    }
+
+    return TodayEnrichment(
+      gita: card(json['gita']),
+      sandhya: card(json['sandhya']),
+      disclaimer: json['disclaimer'] as String? ?? '',
     );
   }
 }

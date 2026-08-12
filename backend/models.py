@@ -72,6 +72,7 @@ class AskQuery(BaseModel):
     limit: int = 3
     conversation_history: List[str] = Field(default_factory=list)
     channel_id: Optional[str] = None
+    include_companions: bool = False
 
 class MalaState(BaseModel):
     beads_today: int = 0
@@ -91,6 +92,7 @@ class ControlSettingsPatch(BaseModel):
     notifications: Optional[bool] = None
     processing_enabled: Optional[bool] = None
     default_channel_id: Optional[str] = None
+    public_companions: Optional[bool] = None
 
 
 class PinQaRequest(BaseModel):
@@ -113,6 +115,19 @@ class MalaSyncRequest(BaseModel):
     questions_today: int = 0
     beads_per_cycle: int = 108
     completed_cycle: bool = False
+
+
+class CompanionQuery(BaseModel):
+    query: str
+    language: Optional[str] = "hi"
+
+
+class ScrapeRequest(BaseModel):
+    url: str
+
+
+class VideoMetaRequest(BaseModel):
+    video_id: str
 
 class ProcessingStatus(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

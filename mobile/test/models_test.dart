@@ -30,6 +30,18 @@ void main() {
     expect(result.refused, isFalse);
   });
 
+  test('companion cards stay labeled public', () {
+    final card = CompanionCard.fromJson({
+      'kind': 'gita',
+      'title': 'Bhagavad Gita 2.47',
+      'text': 'कर्म',
+      'url': 'https://vedicscriptures.github.io/slok/2/47',
+      'attribution': 'not from Uttar Sewa videos',
+    });
+    expect(card.kind, 'gita');
+    expect(card.attribution, contains('not from Uttar Sewa videos'));
+  });
+
   test('control dashboard parses stats and named malas', () {
     final dash = ControlDashboard.fromJson({
       'ready': true,
