@@ -5,7 +5,7 @@ const HAND_KEY = 'uttar_sewa_orb_hand';
 
 const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
   const pointer = useRef({ x: 0, y: 0, started: 0, dragging: false, lastTap: 0 });
-  const [position, setPosition] = useState({ x: 20, y: 96 });
+  const [position, setPosition] = useState({ x: 20, y: null });
   const [idle, setIdle] = useState(false);
   const holdTimer = useRef(null);
   const idleTimer = useRef(null);
@@ -62,6 +62,12 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
     }, HOLD_MS);
   };
 
+  const fallbackBottom = () => {
+    const tab = document.querySelector('.app-tabbar');
+    const tabHeight = tab && tab.offsetParent !== null ? tab.getBoundingClientRect().height : 0;
+    return tabHeight + 16;
+  };
+
   const onPointerMove = (event) => {
     const dx = event.clientX - pointer.current.x;
     const dy = event.clientY - pointer.current.y;
@@ -71,7 +77,7 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
       bumpIdle();
       setPosition((current) => ({
         x: Math.max(8, current.x - dx),
-        y: Math.max(8, current.y - dy),
+        y: Math.max(8, (current.y ?? fallbackBottom()) - dy),
       }));
       pointer.current.x = event.clientX;
       pointer.current.y = event.clientY;
@@ -115,7 +121,10 @@ const JapaOrb = ({ language, state, onTap, onHold, onUndo }) => {
       onPointerUp={onPointerUp}
       onPointerCancel={clearHold}
       className={`japa-orb${idle ? ' japa-orb-idle' : ''}`}
-      style={{ right: position.x, bottom: position.y }}
+      style={{
+        right: position.x,
+        ...(position.y != null ? { bottom: position.y } : {}),
+      }}
     >
       <span className="japa-orb-count">{state.current_in_cycle || 0}</span>
       <span className="japa-orb-label">{label}</span>

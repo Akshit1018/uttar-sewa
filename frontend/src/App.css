@@ -46,45 +46,203 @@
   100% { transform: translateY(0px) translateX(0px); }
 }
 
-/* Mobile-first responsive design */
+/* Mobile-first layout tokens */
+:root {
+  --header-h: calc(3.5rem + env(safe-area-inset-top, 0px));
+  --tabbar-h: calc(4rem + env(safe-area-inset-bottom, 0px));
+  --sidebar-w: 16rem;
+  --page-pad: 1rem;
+  --touch: 2.75rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --page-pad: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --tabbar-h: 0px;
+    --page-pad: 1.75rem;
+  }
+}
+
 html {
   font-size: 16px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  background: radial-gradient(ellipse at top, rgba(30, 30, 30, 0.8) 0%, #000000 70%);
+  background: #000;
   color: #ffffff;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: "liga", "kern";
+  line-height: 1.55;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
 }
 
-/* Chat fills the viewport below the fixed header */
+img, video, iframe {
+  max-width: 100%;
+}
+
+.touch-target {
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
+
+.app-frame {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  z-index: 45;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-main {
+  padding-top: var(--header-h);
+  padding-bottom: var(--tabbar-h);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.app-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  min-height: var(--tabbar-h);
+}
+
+.app-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+}
+
+.app-drawer.is-open {
+  pointer-events: auto;
+}
+
+.app-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.app-drawer.is-open .app-drawer-backdrop {
+  opacity: 1;
+}
+
+.app-drawer-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: min(20rem, 86vw);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-105%);
+  transition: transform 0.25s ease;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.app-drawer.is-open .app-drawer-panel {
+  transform: translateX(0);
+}
+
+.page-shell {
+  min-height: calc(100dvh - var(--header-h) - var(--tabbar-h));
+  padding: var(--page-pad);
+  padding-bottom: calc(var(--page-pad) + 5.5rem);
+}
+
+.page-shell-inner {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.page-shell-wide .page-shell-inner {
+  max-width: 72rem;
+}
+
 .chat-shell {
-  height: calc(100dvh - 4rem);
-  max-height: calc(100dvh - 4rem);
+  height: calc(100dvh - var(--header-h) - var(--tabbar-h));
+  max-height: calc(100dvh - var(--header-h) - var(--tabbar-h));
+}
+
+@media (min-width: 640px) {
+  .page-shell-inner {
+    max-width: 44rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-header {
+    left: var(--sidebar-w);
+  }
+
+  .app-main {
+    padding-left: var(--sidebar-w);
+    padding-bottom: 0;
+  }
+
+  .app-tabbar,
+  .app-drawer {
+    display: none;
+  }
+
+  .page-shell {
+    padding-bottom: calc(var(--page-pad) + 5.5rem);
+  }
+
+  .page-shell-inner {
+    max-width: 56rem;
+  }
+
+  .page-shell-wide .page-shell-inner {
+    max-width: 80rem;
+  }
 }
 
 @supports not (height: 100dvh) {
   .chat-shell {
-    height: calc(100vh - 4rem);
-    max-height: calc(100vh - 4rem);
+    height: calc(100vh - var(--header-h) - var(--tabbar-h));
+    max-height: calc(100vh - var(--header-h) - var(--tabbar-h));
   }
-}
-
-/* iOS/Android safe area support */
-.App {
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .japa-orb {
   position: fixed;
   z-index: 60;
-  width: 72px;
-  height: 72px;
+  right: 1.25rem;
+  bottom: calc(var(--tabbar-h) + 0.75rem);
+  width: 64px;
+  height: 64px;
   border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), rgba(20,20,20,0.95));
@@ -96,8 +254,15 @@ body {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   touch-action: none;
   user-select: none;
-  padding-bottom: env(safe-area-inset-bottom);
   transition: opacity 0.4s ease;
+}
+
+@media (min-width: 640px) {
+  .japa-orb {
+    width: 72px;
+    height: 72px;
+    right: 1.5rem;
+  }
 }
 
 .japa-orb-count {
@@ -144,12 +309,71 @@ body {
 }
 
 .japa-sheet {
-  width: min(100%, 32rem);
+  width: min(100%, 36rem);
+  max-height: min(88dvh, 40rem);
+  overflow: auto;
   background: rgba(18, 18, 18, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1.25rem 1.25rem 0 0;
-  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
   color: #fff;
+}
+
+.chat-bubble {
+  width: 100%;
+  max-width: min(92%, 28rem);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-composer {
+  padding: 0.75rem 0.75rem 0.85rem;
+}
+
+.chip-scroll {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.5rem;
+}
+
+.chip-scroll > button {
+  min-height: var(--touch);
+  max-width: min(80vw, 22rem);
+  white-space: normal;
+  text-align: left;
+}
+
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .settings-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .chat-composer {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .japa-sheet-backdrop {
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .japa-sheet {
+    border-radius: 1.25rem;
+    max-height: min(80dvh, 42rem);
+  }
 }
 
 /* Touch-friendly interactions */

@@ -1,5 +1,6 @@
 import { Play, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
+import { cn } from '../lib/utils';
 import { buildWatchUrl, buildYoutubeHomeUrl, formatTimestamp } from '../lib/youtube';
 
 export function VideoTimestampLink({ videoId, startTime, timestampUrl, label, className }) {
@@ -9,9 +10,9 @@ export function VideoTimestampLink({ videoId, startTime, timestampUrl, label, cl
   }
 
   return (
-    <Button asChild className={className}>
+    <Button asChild className={cn('h-auto min-h-11 whitespace-normal text-center', className)}>
       <a href={href} target="_blank" rel="noopener noreferrer">
-        <Play className="w-4 h-4 mr-2" />
+        <Play className="w-4 h-4 mr-2 shrink-0" />
         {label || formatTimestamp(startTime)}
       </a>
     </Button>
@@ -25,9 +26,9 @@ export function VideoHomeLink({ videoId, youtubeUrl, label, className }) {
   }
 
   return (
-    <Button asChild variant="outline" className={className}>
+    <Button asChild variant="outline" className={cn('h-auto min-h-11 whitespace-normal text-center', className)}>
       <a href={href} target="_blank" rel="noopener noreferrer">
-        <ExternalLink className="w-4 h-4 mr-2" />
+        <ExternalLink className="w-4 h-4 mr-2 shrink-0" />
         {label}
       </a>
     </Button>

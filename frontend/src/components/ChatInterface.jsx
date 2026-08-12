@@ -294,7 +294,7 @@ const ChatInterface = ({ language }) => {
     
     return (
       <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 fade-in`}>
-        <div className={`max-w-[80%] ${isUser ? 'order-2' : 'order-1'}`}>
+        <div className={`chat-bubble ${isUser ? 'order-2' : 'order-1'}`}>
           {/* Avatar */}
           <div className={`flex items-center gap-2 mb-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -324,16 +324,16 @@ const ChatInterface = ({ language }) => {
               {message.results && message.results.length > 0 && (
                 <div className="mt-4 space-y-3">
                   {message.results.map((result, index) => (
-                    <div key={index} className="bg-white/5 rounded-xl p-3 border border-white/10">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="text-white text-sm font-medium leading-relaxed flex-1 mr-2">
+                    <div key={index} className="bg-white/5 rounded-xl p-3 border border-white/10 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="text-white text-sm font-medium leading-relaxed flex-1 min-w-0">
                           {result.question}
                         </h4>
                         <Button
                           onClick={() => handleFavoriteToggle(result)}
                           variant="ghost"
-                          size="sm"
-                          className={`p-1 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
+                          size="icon"
+                          className={`shrink-0 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
                         >
                           {isFavorite(result) ? (
                             <Heart className="w-4 h-4 fill-current" />
@@ -361,7 +361,7 @@ const ChatInterface = ({ language }) => {
                         </Badge>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <VideoTimestampLink
                           videoId={result.video_id}
                           startTime={result.start_time}
@@ -397,24 +397,24 @@ const ChatInterface = ({ language }) => {
   return (
     <div className="chat-shell bg-black text-white flex flex-col overflow-hidden">
       {/* Header with Stats */}
-      <div className="flex-shrink-0 px-4 py-4 border-b border-white/10 glass-card">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-white">
+      <div className="flex-shrink-0 px-3 py-3 sm:px-4 sm:py-4 border-b border-white/10 glass-card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold text-white">
               {language === 'hi' ? 'आध्यात्मिक सहायक' : 'Spiritual Assistant'}
             </h1>
             <p className="text-xs text-gray-400">
               {language === 'hi' ? 'आपके प्रश्नों का उत्तर देने के लिए तैयार' : 'Ready to answer your questions'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <ChannelSelector
               language={language}
               channelId={channelId}
               setChannelId={setChannelId}
               channels={channels}
             />
-            <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+            <div className={`w-3 h-3 rounded-full shrink-0 ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
           </div>
         </div>
 
@@ -435,12 +435,12 @@ const ChatInterface = ({ language }) => {
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 custom-scrollbar">
         {messages.map(renderMessage)}
         
         {loading && (
           <div className="flex justify-start mb-4">
-            <div className="max-w-[80%]">
+            <div className="chat-bubble">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
                   <Bot className="w-4 h-4" />
@@ -475,7 +475,7 @@ const ChatInterface = ({ language }) => {
               {t('suggestedQuestions', language)}
             </span>
           </div>
-          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+          <div className="chip-scroll">
             {suggestedQuestions.slice(0, 6).map((question, index) => (
               <button
                 key={index}
@@ -498,7 +498,7 @@ const ChatInterface = ({ language }) => {
               {t('followUps', language)}
             </span>
           </div>
-          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+          <div className="chip-scroll">
             {followUps.map((question, index) => (
               <button
                 key={`${question}-${index}`}
@@ -513,9 +513,9 @@ const ChatInterface = ({ language }) => {
       )}
 
       {/* Input Area */}
-      <div className="flex-shrink-0 p-4 border-t border-white/10 glass-card" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 relative">
+      <div className="flex-shrink-0 chat-composer border-t border-white/10 glass-card">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex-1 relative min-w-0">
             <Input
               ref={inputRef}
               type="text"
@@ -532,7 +532,8 @@ const ChatInterface = ({ language }) => {
               <Button
                 onClick={handleVoiceSearch}
                 variant="ghost"
-                className={`absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 p-0 ${
+                size="icon"
+                className={`absolute right-1 top-1/2 transform -translate-y-1/2 ${
                   isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'
                 }`}
                 disabled={loading}
@@ -545,7 +546,8 @@ const ChatInterface = ({ language }) => {
           <Button
             onClick={() => handleSendMessage()}
             disabled={loading || !query.trim()}
-            className="bg-white text-black hover:bg-gray-100 w-12 h-12 p-0 rounded-xl transition-all duration-300"
+            size="icon"
+            className="bg-white text-black hover:bg-gray-100 rounded-xl transition-all duration-300 shrink-0"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

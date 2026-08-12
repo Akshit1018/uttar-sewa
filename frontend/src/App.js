@@ -16,6 +16,7 @@ import SadhanaDashboard from "./components/SadhanaDashboard";
 import JapaOrb from "./components/JapaOrb";
 import JapaChatSheet from "./components/JapaChatSheet";
 import { useMala } from "./hooks/useMala";
+import { analyticsService } from "./services/analyticsService";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -146,10 +147,7 @@ const MainApp = () => {
         onClose={() => setChatOpen(false)}
         onAsked={recordQuestion}
       />
-      {/* Fix notification positioning - move below header with proper z-index */}
-      <div className="fixed top-16 left-0 right-0 z-30 pointer-events-none">
-        <Toaster />
-      </div>
+      <Toaster />
     </AppLayout>
   );
 };

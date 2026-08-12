@@ -3,6 +3,7 @@ import { CircleDot } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { BEADS_PER_CYCLE, progressLabel, sankalpaRemaining } from '../lib/mala';
+import PageShell from './Layout/PageShell';
 
 const HAND_KEY = 'uttar_sewa_orb_hand';
 const VOW_KEY = 'uttar_sewa_sankalpa_malas';
@@ -53,7 +54,7 @@ const SadhanaDashboard = ({ language, state }) => {
   ];
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-black text-white px-4 py-8">
+    <PageShell>
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <CircleDot className="w-8 h-8 text-white" />
@@ -89,14 +90,13 @@ const SadhanaDashboard = ({ language, state }) => {
             ? (language === 'hi' ? 'आज का संकल्प पूरा।' : 'Today’s vow is complete.')
             : (language === 'hi' ? `${remaining} माला शेष।` : `${remaining} mala(s) remaining.`)}
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {[1, 3, 11].map((option) => (
             <Button
               key={option}
               type="button"
               variant="outline"
-              size="sm"
-              className={`border-white/20 text-xs ${vow === option ? 'bg-white text-black' : 'text-gray-300'}`}
+              className={`border-white/20 min-w-11 ${vow === option ? 'bg-white text-black' : 'text-gray-300'}`}
               onClick={() => saveVow(option)}
             >
               {option}
@@ -117,11 +117,10 @@ const SadhanaDashboard = ({ language, state }) => {
 
       <div className="glass-card rounded-2xl p-4">
         <p className="text-sm mb-3">{language === 'hi' ? 'गोल की तरफ़' : 'Orb side'}</p>
-        <div className="flex gap-2 mb-3">
+        <div className="flex flex-col sm:flex-row gap-2 mb-3">
           <Button
             type="button"
             variant="outline"
-            size="sm"
             className={`border-white/20 ${hand === 'left' ? 'bg-white text-black' : 'text-gray-300'}`}
             onClick={() => saveHand('left')}
           >
@@ -130,7 +129,6 @@ const SadhanaDashboard = ({ language, state }) => {
           <Button
             type="button"
             variant="outline"
-            size="sm"
             className={`border-white/20 ${hand === 'right' ? 'bg-white text-black' : 'text-gray-300'}`}
             onClick={() => saveHand('right')}
           >
@@ -143,7 +141,7 @@ const SadhanaDashboard = ({ language, state }) => {
             : 'Double-tap undoes the last bead. Drag snaps the orb to an edge. No streaks or leaderboards.'}
         </p>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { useToast } from '../hooks/use-toast';
 import { t } from '../utils/translations';
+import PageShell from './Layout/PageShell';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -195,6 +196,8 @@ const ProcessingStatus = ({ language }) => {
     switch (status) {
       case 'processing':
         return <Loader2 className="w-6 h-6 animate-spin" />;
+      case 'pending':
+        return <Database className="w-6 h-6" />;
       case 'completed':
         return <CheckCircle className="w-6 h-6 text-green-400" />;
       case 'failed':
@@ -212,9 +215,8 @@ const ProcessingStatus = ({ language }) => {
   const canStartProcessing = !isProcessingActive && !loading;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="px-4 py-8 sm:px-6">
-        <Card className="glass-card rounded-2xl shadow-2xl overflow-hidden">
+    <PageShell>
+      <Card className="glass-card rounded-2xl shadow-2xl overflow-hidden">
           <CardHeader className="bg-white/5 border-b border-white/10">
             <CardTitle className="text-white flex items-center gap-3 text-lg">
               <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -232,7 +234,7 @@ const ProcessingStatus = ({ language }) => {
                   <Globe className="w-4 h-4" />
                   {language === 'hi' ? 'सिस्टम स्थिति' : 'System Status'}
                 </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-gray-400">{language === 'hi' ? 'कुल वीडियो:' : 'Total Videos:'}</span>
                     <span className="text-white ml-2">{systemStatus.database.total_videos}</span>
@@ -301,18 +303,18 @@ const ProcessingStatus = ({ language }) => {
                         <h4 className="text-white font-medium text-sm">
                           {language === 'hi' ? 'YouTube चैनल URL दर्ज करें' : 'Enter YouTube Channel URL'}
                         </h4>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Input
                             type="url"
                             placeholder="https://www.youtube.com/@channelname"
                             value={customChannelUrl}
                             onChange={(e) => setCustomChannelUrl(e.target.value)}
-                            className="bg-white/5 border-white/20 text-white placeholder-gray-400 flex-1"
+                            className="bg-white/5 border-white/20 text-white placeholder-gray-400 flex-1 min-w-0"
                           />
                           <Button
                             onClick={handleCustomChannelSubmit}
                             disabled={loading}
-                            className="bg-white text-black hover:bg-gray-100"
+                            className="bg-white text-black hover:bg-gray-100 w-full sm:w-auto"
                           >
                             {loading ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -335,13 +337,13 @@ const ProcessingStatus = ({ language }) => {
             ) : (
               <div className="space-y-6">
                 {/* Status Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 bg-gradient-to-r ${getStatusColor(processingStatus?.status)} rounded-xl flex items-center justify-center`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 shrink-0 bg-gradient-to-r ${getStatusColor(processingStatus?.status)} rounded-xl flex items-center justify-center`}>
                       {getStatusIcon(processingStatus?.status)}
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-white">
                         {getStatusText(processingStatus?.status)}
                       </h3>
                       <p className="text-gray-400 text-sm">
@@ -460,8 +462,7 @@ const ProcessingStatus = ({ language }) => {
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </PageShell>
   );
 };
 

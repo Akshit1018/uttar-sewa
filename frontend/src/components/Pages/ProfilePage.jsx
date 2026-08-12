@@ -2,6 +2,7 @@ import React from 'react';
 import { User, Settings, Heart, Star, Download, Share2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
+import PageShell from '../Layout/PageShell';
 
 const ProfilePage = ({ language }) => {
   const stats = [
@@ -23,8 +24,8 @@ const ProfilePage = ({ language }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="px-4 py-8 sm:px-6">
+    <PageShell>
+      <div>
         {/* Profile Header */}
         <Card className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl mb-6">
           <CardHeader className="text-center">
@@ -44,7 +45,7 @@ const ProfilePage = ({ language }) => {
         </Card>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
           {stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
@@ -91,7 +92,7 @@ const ProfilePage = ({ language }) => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

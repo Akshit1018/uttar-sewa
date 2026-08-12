@@ -3,6 +3,7 @@ import { Settings, Globe, Bell, Download, Trash2, Moon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
+import PageShell from '../Layout/PageShell';
 
 const SettingsPage = ({ language, setLanguage }) => {
   const [notifications, setNotifications] = useState(true);
@@ -66,8 +67,8 @@ const SettingsPage = ({ language, setLanguage }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="px-4 py-8 sm:px-6">
+    <PageShell>
+      <div>
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -96,17 +97,17 @@ const SettingsPage = ({ language, setLanguage }) => {
             return (
               <Card key={index} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-start gap-4">
+                  <div className="settings-row">
+                    <div className="flex items-start gap-4 min-w-0">
                       <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
                         <Icon className="w-5 h-5 text-white" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="text-white font-semibold mb-1">{setting.title}</h3>
                         <p className="text-gray-400 text-sm">{setting.description}</p>
                       </div>
                     </div>
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 self-end sm:self-auto">
                       {setting.action}
                     </div>
                   </div>
@@ -142,7 +143,7 @@ const SettingsPage = ({ language, setLanguage }) => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

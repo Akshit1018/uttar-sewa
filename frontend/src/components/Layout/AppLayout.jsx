@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, User, FileText, Info, Settings, Home, Search, Database, Heart, BarChart3, MessageCircle, CircleDot } from 'lucide-react';
+import { Menu, X, User, FileText, Info, Settings, Home, Search, Database, Heart, BarChart3, MessageCircle, CircleDot, MoreHorizontal } from 'lucide-react';
 import { Button } from '../ui/button';
 import LanguageToggle from '../LanguageToggle';
 import { t } from '../../utils/translations';
@@ -11,130 +11,140 @@ const AppLayout = ({ children, currentView, setCurrentView, language, setLanguag
     { id: 'chat', icon: MessageCircle, label: language === 'hi' ? 'चैट' : 'Chat' },
     { id: 'sadhana', icon: CircleDot, label: language === 'hi' ? 'साधना' : 'Sadhana' },
     { id: 'search', icon: Search, label: t('search', language) },
-    { id: 'processing', icon: Database, label: t('processing', language) },
     { id: 'favorites', icon: Heart, label: language === 'hi' ? 'पसंदीदा' : 'Favorites' },
+    { id: 'processing', icon: Database, label: t('processing', language) },
     { id: 'admin', icon: BarChart3, label: language === 'hi' ? 'एडमिन' : 'Admin' },
     { id: 'profile', icon: User, label: language === 'hi' ? 'प्रोफाइल' : 'Profile' },
     { id: 'about', icon: Info, label: language === 'hi' ? 'हमारे बारे में' : 'About' },
-    { id: 'terms', icon: FileText, label: language === 'hi' ? 'नियम एवं शर्तें' : 'Terms & Conditions' },
+    { id: 'terms', icon: FileText, label: language === 'hi' ? 'नियम' : 'Terms' },
     { id: 'settings', icon: Settings, label: language === 'hi' ? 'सेटिंग्स' : 'Settings' }
   ];
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const tabItems = menuItems.slice(0, 4);
+  const moreActive = !tabItems.some((item) => item.id === currentView);
+
+  const toggleMenu = () => setIsMenuOpen((open) => !open);
 
   const handleMenuClick = (itemId) => {
     setCurrentView(itemId);
     setIsMenuOpen(false);
   };
 
+  const renderNavButtons = (items, compact = false) => items.map((item) => {
+    const Icon = item.icon;
+    const isActive = currentView === item.id;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => handleMenuClick(item.id)}
+        className={`touch-target w-full flex items-center gap-3 rounded-xl transition-colors ${
+          compact ? 'flex-col justify-center gap-1 px-1 py-2 text-[11px]' : 'p-3 text-sm'
+        } ${
+          isActive
+            ? 'glass-strong text-white border border-white/20'
+            : 'text-gray-300 hover:bg-white/5 hover:text-white'
+        }`}
+      >
+        <Icon className={compact ? 'w-5 h-5' : 'w-5 h-5 shrink-0'} />
+        <span className={`font-medium truncate ${compact ? 'max-w-full' : ''}`}>{item.label}</span>
+      </button>
+    );
+  });
+
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
-      {/* Mobile Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/10">
-        <div className="flex items-center justify-between p-4">
-          {/* Hamburger Menu */}
+    <div className="app-frame bg-black text-white">
+      <header className="app-header glass-card border-b border-white/10">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 min-h-[3.5rem]">
           <Button
             onClick={toggleMenu}
             variant="ghost"
-            size="sm"
-            className="p-2 text-white hover:bg-white/10 rounded-xl interactive"
+            size="icon"
+            className="touch-target text-white hover:bg-white/10 rounded-xl lg:hidden"
+            aria-label={language === 'hi' ? 'मेनू' : 'Menu'}
           >
             {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </Button>
-
-          {/* App Title */}
-          <h1 className="text-lg font-bold text-center flex-1 px-4 text-gradient">
-            {language === 'hi' ? 'आध्यात्मिक खोज' : 'Spiritual Search'}
+          <h1 className="text-base sm:text-lg font-bold text-center flex-1 px-2 text-gradient truncate">
+            {language === 'hi' ? 'उत्तर सेवा' : 'Uttar Sewa'}
           </h1>
-
-          {/* Language Toggle */}
           <LanguageToggle language={language} setLanguage={setLanguage} />
         </div>
       </header>
 
-      {/* Slide-out Menu */}
-      <div className={`fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out ${
-        isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        {/* Backdrop */}
-        <div 
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          onClick={toggleMenu}
-        />
-        
-        {/* Menu Content */}
-        <div className="relative w-80 max-w-[85vw] h-full glass-strong border-r border-white/10 slide-in">
-          {/* Menu Header */}
-          <div className="p-6 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-white/20 to-white/5 rounded-xl flex items-center justify-center">
-                <Home className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white text-gradient">
-                  {language === 'hi' ? 'आध्यात्मिक ज्ञान' : 'Spiritual Knowledge'}
-                </h2>
-                <p className="text-sm text-gray-400">
-                  {language === 'hi' ? 'मेनू' : 'Menu'}
-                </p>
-              </div>
+      <aside className="app-sidebar glass-strong border-r border-white/10 hidden lg:flex flex-col">
+        <div className="p-5 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center">
+              <Home className="w-5 h-5" />
             </div>
-          </div>
-
-          {/* Menu Items */}
-          <nav className="p-4 space-y-2 custom-scrollbar overflow-y-auto" style={{ height: 'calc(100vh - 180px)' }}>
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentView === item.id;
-              
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleMenuClick(item.id)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 interactive ${
-                    isActive 
-                      ? 'glass-strong text-white border border-white/20' 
-                      : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                  {item.id === 'chat' && (
-                    <div className="ml-auto w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  )}
-                  {item.id === 'favorites' && (
-                    <div className="ml-auto w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                  )}
-                  {item.id === 'admin' && (
-                    <div className="ml-auto w-2 h-2 bg-blue-400 rounded-full"></div>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Menu Footer */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 glass-card">
-            <div className="text-center text-sm text-gray-400">
-              <p>{language === 'hi' ? 'संस्करण 2.1.0' : 'Version 2.1.0'}</p>
-              <p className="mt-1 text-xs">
-                {language === 'hi' ? '900+ आध्यात्मिक वीडियो' : '900+ Spiritual Videos'}
-              </p>
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-xs">{language === 'hi' ? 'ऑनलाइन' : 'Online'}</span>
-              </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold truncate">{language === 'hi' ? 'आध्यात्मिक ज्ञान' : 'Spiritual Knowledge'}</h2>
+              <p className="text-xs text-gray-400">{language === 'hi' ? 'मेनू' : 'Menu'}</p>
             </div>
           </div>
         </div>
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+          {renderNavButtons(menuItems)}
+        </nav>
+        <div className="p-4 border-t border-white/10 text-center text-xs text-gray-400">
+          {language === 'hi' ? 'संस्करण 2.1.0' : 'Version 2.1.0'}
+        </div>
+      </aside>
+
+      <div className={`app-drawer lg:hidden ${isMenuOpen ? 'is-open' : ''}`}>
+        <div className="app-drawer-backdrop" onClick={toggleMenu} />
+        <div className="app-drawer-panel glass-strong border-r border-white/10">
+          <div className="p-5 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center">
+                <Home className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">{language === 'hi' ? 'आध्यात्मिक ज्ञान' : 'Spiritual Knowledge'}</h2>
+                <p className="text-xs text-gray-400">{language === 'hi' ? 'मेनू' : 'Menu'}</p>
+              </div>
+            </div>
+          </div>
+          <nav className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar pb-8">
+            {renderNavButtons(menuItems)}
+          </nav>
+        </div>
       </div>
 
-      {/* Main Content */}
-      <main className="pt-16 gpu-accelerated">
+      <main className="app-main">
         {children}
       </main>
+
+      <nav className="app-tabbar lg:hidden glass-card border-t border-white/10" aria-label={language === 'hi' ? 'मुख्य नेविगेशन' : 'Main'}>
+        {tabItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = currentView === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => handleMenuClick(item.id)}
+              className={`touch-target flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[11px] ${
+                isActive ? 'text-white' : 'text-gray-400'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="truncate max-w-[4.5rem]">{item.label}</span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={toggleMenu}
+          className={`touch-target flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[11px] ${
+            moreActive || isMenuOpen ? 'text-white' : 'text-gray-400'
+          }`}
+        >
+          <MoreHorizontal className="w-5 h-5" />
+          <span>{language === 'hi' ? 'और' : 'More'}</span>
+        </button>
+      </nav>
     </div>
   );
 };

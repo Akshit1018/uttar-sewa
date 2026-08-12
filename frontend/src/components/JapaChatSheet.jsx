@@ -106,7 +106,7 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
           <h2 className="text-base font-semibold">
             {language === 'hi' ? 'प्रवचन से पूछें' : 'Ask from the discourses'}
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-white">
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-white shrink-0">
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -119,13 +119,13 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
         {result && (
           <div className="mb-4 space-y-3 max-h-[40vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-start justify-between gap-2">
-              <p className={`text-sm leading-relaxed ${result.refused ? 'text-amber-200' : 'text-white'}`}>
+              <p className={`text-sm leading-relaxed min-w-0 ${result.refused ? 'text-amber-200' : 'text-white'}`}>
                 {result.answer}
               </p>
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                size="icon"
                 className="text-white shrink-0"
                 onClick={() => speakAnswer(result.answer)}
                 aria-label={language === 'hi' ? 'उत्तर सुनें' : 'Hear answer'}
@@ -141,8 +141,8 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
                     “{(clip.source_answer || '').slice(0, 160)}{(clip.source_answer || '').length > 160 ? '…' : ''}”
                   </p>
                 ) : null}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-400">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="text-xs text-gray-400 min-w-0">
                     {clip.citation_kind === 'curated'
                       ? (language === 'hi' ? 'संग्रहित शिक्षण' : 'Curated teaching')
                       : clip.video_title}
@@ -166,23 +166,25 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && handleAsk(query)}
             placeholder={t('searchPlaceholder', language)}
-            className="bg-white/5 border-white/20 text-white"
+            className="bg-white/5 border-white/20 text-white min-w-0 flex-1"
             disabled={loading}
           />
           <Button
             type="button"
             variant="ghost"
+            size="icon"
             onClick={requestMic}
-            className={isListening ? 'text-red-400' : 'text-white'}
+            className={isListening ? 'text-red-400 shrink-0' : 'text-white shrink-0'}
             aria-label={language === 'hi' ? 'बोलें' : 'Speak'}
           >
             {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </Button>
           <Button
             type="button"
+            size="icon"
             onClick={() => handleAsk(query)}
             disabled={loading || !query.trim()}
-            className="bg-white text-black"
+            className="bg-white text-black shrink-0"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>

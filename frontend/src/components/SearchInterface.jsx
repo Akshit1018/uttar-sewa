@@ -17,6 +17,7 @@ import { formatTimestamp } from '../lib/youtube';
 import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
 import ChannelSelector from './ChannelSelector';
 import { useChannels } from '../hooks/useChannels';
+import PageShell from './Layout/PageShell';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -256,24 +257,21 @@ const SearchInterface = ({ language }) => {
   const getPopularHistory = () => getPopularSearches(5);
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-black text-white">
-      {/* Hero Section - Mobile Optimized */}
-      <div className="px-4 py-8 sm:px-6 sm:py-12 relative">
-        {/* Online/Offline Indicator */}
-        <div className="absolute top-4 right-4 flex items-center gap-2">
+    <PageShell>
+      <div className="relative">
+        <div className="flex items-center justify-end gap-2 mb-4">
           <ChannelSelector
             language={language}
             channelId={channelId}
             setChannelId={setChannelId}
             channels={channels}
           />
-          <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}>
+          <div className={`w-3 h-3 rounded-full shrink-0 ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}>
           </div>
         </div>
 
-        {/* Stats Cards - Mobile Stack */}
         {stats && (
-          <div className="grid grid-cols-3 gap-3 mb-8 sm:gap-4 fade-in">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 fade-in">
             {[
               { value: stats.total_videos, label: t('totalVideos', language), color: 'from-blue-500/20 to-blue-500/5', icon: Play },
               { value: stats.total_qa_pairs, label: t('qaTotal', language), color: 'from-green-500/20 to-green-500/5', icon: Sparkles },
@@ -281,26 +279,25 @@ const SearchInterface = ({ language }) => {
             ].map((stat, index) => {
               const IconComponent = stat.icon;
               return (
-                <div key={index} className="glass-card rounded-2xl p-4 text-center glass-card-hover">
+                <div key={index} className="glass-card rounded-2xl p-3 sm:p-4 text-center glass-card-hover min-w-0">
                   <div className="flex items-center justify-center mb-2">
                     <IconComponent className="w-4 h-4 text-white/70" />
                   </div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">
+                  <div className="text-lg sm:text-2xl font-bold text-white">
                     {stat.value}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-400 mt-1">{stat.label}</div>
+                  <div className="text-[10px] sm:text-sm text-gray-400 mt-1 leading-tight">{stat.label}</div>
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Enhanced Search Bar */}
         <div className="relative zoom-in">
-          <div className="relative group">
-            <div className="glass-strong rounded-2xl p-1 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center ml-2">
+          <div className="glass-strong rounded-2xl p-2 shadow-2xl">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
                   <Search className="w-5 h-5 text-gray-400" />
                 </div>
                 <Input
@@ -311,33 +308,32 @@ const SearchInterface = ({ language }) => {
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   onFocus={() => query.length === 0 && setShowHistory(true)}
-                  className="flex-1 bg-transparent border-none text-base text-white placeholder-gray-400 focus:outline-none focus:ring-0 p-0 h-12 focus-ring"
+                  className="flex-1 min-w-0 bg-transparent border-none text-base text-white placeholder-gray-400 focus:outline-none focus:ring-0 p-0 h-11 focus-ring"
                 />
-                
-                {/* Voice Search Button */}
+              </div>
+              <div className="flex items-center gap-2 justify-end">
                 {voiceSupported && (
                   <Button
                     onClick={handleVoiceSearch}
                     variant="ghost"
-                    className={`h-12 w-12 p-0 ${isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'}`}
+                    size="icon"
+                    className={isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'}
                   >
                     {isListening ? <MicOff className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
                   </Button>
                 )}
-
-                {/* History Button */}
                 <Button
                   onClick={() => setShowHistory(!showHistory)}
                   variant="ghost"
-                  className="h-12 w-12 p-0 hover:bg-white/10"
+                  size="icon"
+                  className="hover:bg-white/10"
                 >
                   <History className="w-5 h-5" />
                 </Button>
-
                 <Button
                   onClick={() => handleSearch()}
                   disabled={loading}
-                  className="h-12 px-6 bg-white text-black hover:bg-gray-100 font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 btn-mobile"
+                  className="h-11 px-4 sm:px-6 bg-white text-black hover:bg-gray-100 font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 btn-mobile"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -379,7 +375,7 @@ const SearchInterface = ({ language }) => {
                       <button
                         key={item.id}
                         onClick={() => handleHistoryClick(item)}
-                        className="w-full text-left p-2 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors"
+                        className="touch-target w-full text-left p-3 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors"
                       >
                         {item.query}
                         <span className="text-xs text-gray-500 ml-2">
@@ -402,7 +398,7 @@ const SearchInterface = ({ language }) => {
                       <button
                         key={index}
                         onClick={() => handleHistoryClick({ query: item.query })}
-                        className="w-full text-left p-2 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors flex items-center justify-between"
+                        className="touch-target w-full text-left p-3 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors flex items-center justify-between"
                       >
                         <span>{item.query}</span>
                         <Badge variant="secondary" className="bg-white/20 text-white text-xs">
@@ -439,7 +435,7 @@ const SearchInterface = ({ language }) => {
       </div>
 
       {/* Main Content */}
-      <div className="px-4 pb-6 sm:px-6">
+      <div className="mt-6">
         {/* Results Section */}
         {results.length > 0 && (
           <div className="space-y-4 mb-8 fade-in">
@@ -461,8 +457,8 @@ const SearchInterface = ({ language }) => {
                     <Button
                       onClick={() => handleFavoriteToggle(result)}
                       variant="ghost"
-                      size="sm"
-                      className={`p-2 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
+                      size="icon"
+                      className={`shrink-0 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
                     >
                       {isFavorite(result) ? (
                         <Heart className="w-5 h-5 fill-current" />
@@ -538,7 +534,7 @@ const SearchInterface = ({ language }) => {
                 <button
                   key={index}
                   onClick={() => handleSuggestedQuestionClick(question)}
-                  className="w-full text-left p-4 rounded-xl glass-card hover:bg-white/10 text-gray-300 hover:text-white transition-all duration-200 text-sm leading-relaxed glass-hover interactive"
+                  className="touch-target w-full text-left p-4 rounded-xl glass-card hover:bg-white/10 text-gray-300 hover:text-white transition-all duration-200 text-sm leading-relaxed glass-hover interactive"
                 >
                   {question}
                 </button>
@@ -547,7 +543,7 @@ const SearchInterface = ({ language }) => {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 
