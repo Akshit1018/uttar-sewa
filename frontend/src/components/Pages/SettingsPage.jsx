@@ -81,6 +81,14 @@ const SettingsPage = ({ language, setLanguage }) => {
           </p>
         </div>
 
+        <Card className="bg-white/5 border border-white/10 rounded-2xl mb-6">
+          <CardContent className="p-4 text-sm text-gray-300 leading-relaxed">
+            {language === 'hi'
+              ? 'माला गोल इस ऐप पर हमेशा तैरता है। टैप = मनका, 2.5 सेकंड दबाएँ = चैट। माइक्रोफ़ोन की अनुमति पहली बार बोलने पर माँगी जाएगी। अन्य ऐप्स के ऊपर तैरना केवल Android नेटिव शेल में संभव है; iPhone इसकी अनुमति नहीं देता।'
+              : 'The mala orb always floats inside this app. Tap = bead, hold 2.5s = chat. Microphone permission is requested the first time you speak. Drawing over other apps is only possible in an Android native shell; iPhone does not allow it.'}
+          </CardContent>
+        </Card>
+
         {/* Settings List */}
         <div className="space-y-4 mb-8">
           {settings.map((setting, index) => {

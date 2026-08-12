@@ -19,7 +19,8 @@ import uuid
 # Import models and services
 from backend.models import (
     VideoModel, TranscriptSegment, QuestionAnswer,
-    SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest
+    SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
+    AskQuery, MalaState
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
@@ -28,6 +29,8 @@ from backend.services.enhanced_search_coordinator import enhanced_search_coordin
 from backend.services.relevance_search import (
     expand_query, rank_answers, related_questions, library_as_qa, recommend_from_history
 )
+from backend.services.grounded_ask import grounded_ask
+from backend.services.mala_counter import BEADS_PER_CYCLE, HOLD_MS, apply_tap, apply_undo, summarize_day
 from backend.services.timestamp_urls import build_watch_url, format_timestamp_display
 from backend.services.channel_registry import list_channels, get_channel, topic_for_tags
 
@@ -225,6 +228,58 @@ async def get_recommendations(body: RecommendationRequest):
     except Exception as e:
         logger.error(f"Error getting recommendations: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/ask")
+async def ask_grounded(body: AskQuery):
+    """Answer only from the video/Q&A corpus, with citations. Refuses if evidence is weak."""
+    try:
+        if not (body.query or "").strip():
+            language = body.language or "hi"
+            return {
+                "answer": "कृपया प्रश्न लिखें।" if language == "hi" else "Please enter a question.",
+                "refused": True,
+                "clips": [],
+                "expanded_query": "",
+                "top_score": 0,
+            }
+        qa_database = await _load_qa_database()
+        return grounded_ask(
+            body.query,
+            corpus=qa_database,
+            conversation_history=body.conversation_history,
+            language=body.language or "hi",
+            limit=body.limit,
+            channel_id=body.channel_id,
+        )
+    except Exception as e:
+        logger.error(f"Error in grounded ask: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/mala/config")
+async def mala_config():
+    return {
+        "beads_per_cycle": BEADS_PER_CYCLE,
+        "hold_ms": HOLD_MS,
+        "overlay": "in_app",
+        "note": "System-wide overlay requires a native Android shell; iOS uses in-app orb + Live Activity later.",
+    }
+
+
+@api_router.post("/mala/tap")
+async def mala_tap(body: MalaState):
+    return apply_tap(body.model_dump())
+
+
+@api_router.post("/mala/undo")
+async def mala_undo(body: MalaState):
+    return apply_undo(body.model_dump())
+
+
+@api_router.post("/mala/summary")
+async def mala_summary(body: MalaState):
+    return summarize_day(body.model_dump())
 
 @api_router.get("/stats")
 async def get_stats():

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, User, FileText, Info, Settings, Home, Search, Database, Heart, BarChart3, MessageCircle } from 'lucide-react';
+import { Menu, X, User, FileText, Info, Settings, Home, Search, Database, Heart, BarChart3, MessageCircle, CircleDot } from 'lucide-react';
 import { Button } from '../ui/button';
 import LanguageToggle from '../LanguageToggle';
 import { t } from '../../utils/translations';
@@ -9,6 +9,7 @@ const AppLayout = ({ children, currentView, setCurrentView, language, setLanguag
 
   const menuItems = [
     { id: 'chat', icon: MessageCircle, label: language === 'hi' ? 'चैट' : 'Chat' },
+    { id: 'sadhana', icon: CircleDot, label: language === 'hi' ? 'साधना' : 'Sadhana' },
     { id: 'search', icon: Search, label: t('search', language) },
     { id: 'processing', icon: Database, label: t('processing', language) },
     { id: 'favorites', icon: Heart, label: language === 'hi' ? 'पसंदीदा' : 'Favorites' },

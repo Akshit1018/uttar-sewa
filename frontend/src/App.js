@@ -12,7 +12,10 @@ import ProfilePage from "./components/Pages/ProfilePage";
 import AboutPage from "./components/Pages/AboutPage";
 import TermsPage from "./components/Pages/TermsPage";
 import SettingsPage from "./components/Pages/SettingsPage";
-import { analyticsService } from "./services/analyticsService";
+import SadhanaDashboard from "./components/SadhanaDashboard";
+import JapaOrb from "./components/JapaOrb";
+import JapaChatSheet from "./components/JapaChatSheet";
+import { useMala } from "./hooks/useMala";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -21,6 +24,8 @@ const MainApp = () => {
   const [currentView, setCurrentView] = useState('chat');
   const [stats, setStats] = useState(null);
   const [language, setLanguage] = useState('hi'); // Default to Hindi as requested
+  const [chatOpen, setChatOpen] = useState(false);
+  const { state: malaState, tap, undo, recordQuestion } = useMala();
 
   useEffect(() => {
     loadStats();
@@ -97,6 +102,8 @@ const MainApp = () => {
     switch (currentView) {
       case 'chat':
         return <ChatInterface language={language} />;
+      case 'sadhana':
+        return <SadhanaDashboard language={language} state={malaState} />;
       case 'search':
         return <SearchInterface language={language} />;
       case 'processing':
@@ -126,6 +133,19 @@ const MainApp = () => {
       setLanguage={setLanguage}
     >
       {renderCurrentView()}
+      <JapaOrb
+        language={language}
+        state={malaState}
+        onTap={tap}
+        onHold={() => setChatOpen(true)}
+        onUndo={undo}
+      />
+      <JapaChatSheet
+        language={language}
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        onAsked={recordQuestion}
+      />
       {/* Fix notification positioning - move below header with proper z-index */}
       <div className="fixed top-16 left-0 right-0 z-30 pointer-events-none">
         <Toaster />

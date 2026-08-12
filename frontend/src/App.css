@@ -80,6 +80,68 @@ body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+.japa-orb {
+  position: fixed;
+  z-index: 60;
+  width: 72px;
+  height: 72px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), rgba(20,20,20,0.95));
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  touch-action: none;
+  user-select: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.japa-orb-count {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.japa-orb-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.japa-orb-cycle {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 0.6rem;
+  background: #fff;
+  color: #000;
+  border-radius: 9999px;
+  padding: 2px 6px;
+}
+
+.japa-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.japa-sheet {
+  width: min(100%, 32rem);
+  background: rgba(18, 18, 18, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.25rem 1.25rem 0 0;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  color: #fff;
+}
+
 /* Touch-friendly interactions */
 button, a, [role="button"] {
   touch-action: manipulation;

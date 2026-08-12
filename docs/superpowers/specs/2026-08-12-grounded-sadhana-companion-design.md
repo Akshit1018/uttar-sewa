@@ -2,7 +2,7 @@
 
 **Product:** Uttar Sewa (Spiritual Q&A)  
 **Date:** 2026-08-12  
-**Status:** Brainstorm / design. Not implementation.
+**Status:** Phase 1–2 implemented in the PWA (grounded `/api/ask`, in-app japa orb, hold-to-chat, voice, sadhana dashboard). Native overlay / Watch remain later.
 
 ## Problem
 

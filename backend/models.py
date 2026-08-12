@@ -66,6 +66,20 @@ class RecommendationRequest(BaseModel):
     limit: int = 6
     channel_id: Optional[str] = None
 
+class AskQuery(BaseModel):
+    query: str
+    language: Optional[str] = "hi"
+    limit: int = 3
+    conversation_history: List[str] = Field(default_factory=list)
+    channel_id: Optional[str] = None
+
+class MalaState(BaseModel):
+    beads_today: int = 0
+    cycles_today: int = 0
+    current_in_cycle: int = 0
+    questions_today: int = 0
+    completed_cycle: bool = False
+
 class ProcessingStatus(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     status: str  # pending, processing, completed, failed
