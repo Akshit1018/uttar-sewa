@@ -48,10 +48,13 @@ On API startup, `bootstrap_database` creates indexes and seeds curated Q&A if `q
 | `control_settings` | dashboard toggles (one doc, `_id: app`) |
 | `pinned_qa` | clips pinned from the app |
 | `mala_days` | per-device daily japa sync |
+| `control_secrets` | bring-your-own API keys (cleartext in Mongo; GET never returns the full secret) |
 
 Set `MONGO_URL` (default `mongodb://localhost:27017`) and `DB_NAME` (default `uttar_sewa`). If Mongo is down, the API still serves search from the curated library and returns default control settings.
 
 You can also paste YouTube, Gemini, and Mistral keys in the app (**Settings → Bring your keys**). User keys override `.env` and take effect without a restart. GET `/api/control/keys` never returns the full secret.
+
+If the API is reachable on a network, set `CONTROL_TOKEN` and the same value under **Settings → Control token**. When the variable is empty, write routes stay open for local demo.
 
 ## Control API
 
@@ -60,7 +63,7 @@ You can also paste YouTube, Gemini, and Mistral keys in the app (**Settings → 
 | GET | `/api/health` | API + database ping |
 | GET | `/api/control/dashboard` | stats + current controls |
 | GET/PUT | `/api/control/settings` | language, mala cycle, sandhya, processing |
-| GET/PUT | `/api/control/keys` | bring-your-own API keys (masked on read; live reconfigure) |
+| GET/PUT | `/api/control/keys` | bring-your-own API keys (masked on read; live reconfigure). If `CONTROL_TOKEN` is set, requires `X-Control-Token` |
 | POST | `/api/process/ingest` | fill library from videos / video_ids / channel |
 | POST | `/api/control/qa/pin` | pin a cited clip |
 | GET | `/api/control/qa/pinned` | list pinned clips |
@@ -115,13 +118,15 @@ pip install -r backend/requirements.txt
 python -m pytest tests/ -q
 ```
 
+Product memory for future work lives in [`docs/product/`](docs/product/PRODUCT_VISION.md) (vision, graph, decisions, backlog, security). This is a spiritual Q&A + japa product — not a recruiting or resume system.
+
 ## Why it exists
 
 Seekers ask the same questions that already live in long discourse videos. Uttar Sewa turns those videos into searchable Q&A with a clickable timestamp, instead of making people scrub through hours of footage.
 
 ## Status
 
-Flutter client + control API + Mongo bootstrap are in this release. Search ranking, timestamp URLs, chat memory, grounded `/api/ask`, and the in-app japa orb are included. YouTube processing still needs captions (or transcription) for a full 900+ video index; the curated library is used when the database is empty. Native overlay / Watch / Whisper STT remain later.
+Flutter client + control API + Mongo bootstrap are in this release. Chat and the japa orb use grounded `/api/ask` (refuse when evidence is thin). Japa increments locally so a bead still counts offline, then syncs. Ingest stores extractive transcript Q&A only (Gemini paraphrases are not written into the grounded corpus). Re-ingest replaces prior segments/Q&A for that video. Public scrape does not follow redirects. Optional `CONTROL_TOKEN` gates write/admin routes. Caption-less videos can use local Whisper audio (`WHISPER_AUDIO_DIR`). Native overlay / Live Activity / Watch channels exist; device proof is still required on a phone. The curated library is used when the database is empty.
 
 ## License
 

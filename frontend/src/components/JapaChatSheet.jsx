@@ -34,6 +34,9 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
           limit: 3,
         }),
       });
+      if (!response.ok) {
+        throw new Error('Ask failed');
+      }
       const data = await response.json();
       setResult(data);
       setHistory((current) => [...current, question].slice(-8));

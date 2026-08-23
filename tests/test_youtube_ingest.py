@@ -117,6 +117,29 @@ def test_processing_ingest_video_list_stores_youtube_qa_not_curated():
     assert db.videos.docs[0]["transcript_processed"] is True
 
 
+def test_reingest_replaces_existing_segments_and_qa():
+    db = FakeDB()
+    service = ProcessingService(
+        db,
+        youtube_service=YouTubeService(fetcher=FakeYouTubeFetcher()),
+        llm_service=FakeLLM(pairs=[]),
+    )
+    first = {
+        **VIDEO,
+        "captions": [{"start_time": 4, "end_time": 9, "text": "पहला पाठ", "language": "hi"}],
+    }
+    second = {
+        **VIDEO,
+        "captions": [{"start_time": 4, "end_time": 9, "text": "दूसरा पाठ", "language": "hi"}],
+    }
+    asyncio.run(service.ingest_video_list([first]))
+    asyncio.run(service.ingest_video_list([second]))
+    assert len(db.transcript_segments.docs) == 1
+    assert len(db.question_answers.docs) == 1
+    assert db.transcript_segments.docs[0]["text"] == "दूसरा पाठ"
+    assert db.question_answers.docs[0]["answer"] == "दूसरा पाठ"
+
+
 def test_ingest_from_channel_uses_fetcher_not_api_key(monkeypatch):
     monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
     db = FakeDB()

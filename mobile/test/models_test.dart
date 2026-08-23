@@ -3,6 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:uttar_sewa/models.dart';
 
 void main() {
+  test('applyTap completes a cycle of 11 without calling an API', () {
+    var state = const MalaState(beadsPerCycle: 11, currentInCycle: 10, beadsToday: 10);
+    state = state.applyTap();
+    expect(state.beadsToday, 11);
+    expect(state.cyclesToday, 1);
+    expect(state.currentInCycle, 0);
+    expect(state.completedCycle, isTrue);
+  });
+
+  test('applyUndo restores the previous bead in a completed cycle', () {
+    var state = const MalaState(beadsPerCycle: 11, currentInCycle: 10, beadsToday: 10);
+    state = state.applyTap().applyUndo();
+    expect(state.beadsToday, 10);
+    expect(state.cyclesToday, 0);
+    expect(state.currentInCycle, 10);
+    expect(state.completedCycle, isFalse);
+  });
+
   test('mala json roundtrip keeps cycle length', () {
     const state = MalaState(beadsToday: 10, beadsPerCycle: 27, mantraId: 'om');
     final copy = MalaState.fromJson(state.toJson());

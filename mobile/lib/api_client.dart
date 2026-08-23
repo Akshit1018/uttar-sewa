@@ -14,9 +14,12 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl}) : baseUrl = baseUrl ?? _fromEnv();
+  ApiClient({String? baseUrl, String controlToken = ''})
+      : baseUrl = baseUrl ?? _fromEnv(),
+        controlToken = controlToken;
 
   final String baseUrl;
+  String controlToken;
 
   static String _fromEnv() {
     const defined = String.fromEnvironment('API_BASE');
@@ -36,15 +39,23 @@ class ApiClient {
     return jsonDecode(response.body);
   }
 
+  Map<String, String> _headers() {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (controlToken.trim().isNotEmpty) {
+      headers['X-Control-Token'] = controlToken.trim();
+    }
+    return headers;
+  }
+
   Future<Map<String, dynamic>> _get(String path, [Map<String, String>? query]) async {
-    final response = await http.get(_u(path, query));
+    final response = await http.get(_u(path, query), headers: _headers());
     return Map<String, dynamic>.from(_decode(response) as Map);
   }
 
   Future<dynamic> _post(String path, Map<String, dynamic> body) async {
     final response = await http.post(
       _u(path),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers(),
       body: jsonEncode(body),
     );
     return _decode(response);
@@ -53,7 +64,7 @@ class ApiClient {
   Future<Map<String, dynamic>> _put(String path, Map<String, dynamic> body) async {
     final response = await http.put(
       _u(path),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers(),
       body: jsonEncode(body),
     );
     return Map<String, dynamic>.from(_decode(response) as Map);

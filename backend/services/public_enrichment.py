@@ -327,7 +327,7 @@ class PublicHttp:
     def get_json(self, url: str) -> Any:
         if not is_safe_public_url(url):
             raise ValueError("blocked url")
-        with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
+        with httpx.Client(timeout=self.timeout, follow_redirects=False) as client:
             response = client.get(url, headers={"User-Agent": "UttarSewa/2.3"})
             response.raise_for_status()
             return response.json()
@@ -346,7 +346,7 @@ class PublicHttp:
             except Exception:
                 text = html[:2000]
             return f"{title}\n{text}".strip()
-        with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
+        with httpx.Client(timeout=self.timeout, follow_redirects=False) as client:
             response = client.get(url, headers={"User-Agent": "UttarSewa/2.3"})
             response.raise_for_status()
             return response.text[:8000]

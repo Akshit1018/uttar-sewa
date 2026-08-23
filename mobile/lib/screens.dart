@@ -446,12 +446,13 @@ class SettingsScreen extends StatelessWidget {
           title: Text(state.t('API', 'API')),
           subtitle: Text(state.api.baseUrl),
         ),
+        ControlTokenField(state: state),
         ListTile(
           title: Text(state.t('डेटाबेस', 'Database')),
           subtitle: Text(asBool(state.health?['database']) ? 'uttar_sewa' : state.t('ऑफ़लाइन मोड', 'Offline mode')),
         ),
         const SizedBox(height: 16),
-        ByokKeysCard(state: state),
+        ByokKeysCard(key: ValueKey(state.api.controlToken), state: state),
         SwitchListTile(
           title: Text(state.t('सार्वजनिक साथी पाठ', 'Public companion texts')),
           value: asBool(state.dashboard?.controls['public_companions'], true),
@@ -515,6 +516,56 @@ class _ScrapeBoxState extends State<ScrapeBox> {
           Text(_preview!, style: const TextStyle(color: Colors.white70, height: 1.4)),
         ],
       ],
+    );
+  }
+}
+
+class ControlTokenField extends StatefulWidget {
+  const ControlTokenField({super.key, required this.state});
+  final AppState state;
+
+  @override
+  State<ControlTokenField> createState() => _ControlTokenFieldState();
+}
+
+class _ControlTokenFieldState extends State<ControlTokenField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.state.api.controlToken);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locked = asBool(widget.state.health?['control_locked']);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: TextField(
+        controller: _controller,
+        obscureText: true,
+        enableSuggestions: false,
+        autocorrect: false,
+        onSubmitted: widget.state.setControlToken,
+        onChanged: (value) => widget.state.api.controlToken = value.trim(),
+        decoration: InputDecoration(
+          labelText: widget.state.t('कंट्रोल टोकन', 'Control token'),
+          hintText: locked
+              ? widget.state.t('सर्वर ने टोकन मांगा', 'Server requires a token')
+              : widget.state.t('वैकल्पिक — CONTROL_TOKEN', 'Optional — CONTROL_TOKEN'),
+          suffixIcon: IconButton(
+            onPressed: () => widget.state.setControlToken(_controller.text),
+            icon: const Icon(Icons.save_outlined),
+          ),
+        ),
+      ),
     );
   }
 }

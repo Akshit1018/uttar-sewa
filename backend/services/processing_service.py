@@ -36,6 +36,11 @@ class ProcessingService:
         self.transcribe = transcribe or transcribe_with_whisper
         self.audio_directory = audio_directory or os.getenv("WHISPER_AUDIO_DIR")
 
+    async def _replace_video_evidence(self, video_id: str) -> None:
+        """Drop prior segments/Q&A for a video before writing a fresh extractive corpus."""
+        await self.db.transcript_segments.delete_many({"video_id": video_id})
+        await self.db.question_answers.delete_many({"video_id": video_id})
+
     async def ingest_video_list(self, videos: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Store YouTube videos, captions/Whisper segments, and citable Q&A."""
         rows: List[Dict[str, Any]] = []
@@ -57,14 +62,19 @@ class ProcessingService:
             audio_directory=self.audio_directory,
         )
 
+        replaced: set[str] = set()
         for record in library["videos"]:
-            existing = await self.db.videos.find_one({"video_id": record["video_id"]})
+            video_id = record["video_id"]
+            existing = await self.db.videos.find_one({"video_id": video_id})
             payload = VideoModel(**record).dict()
             payload["source"] = record.get("source") or "youtube"
             if existing:
-                await self.db.videos.update_one({"video_id": record["video_id"]}, {"$set": payload})
+                await self.db.videos.update_one({"video_id": video_id}, {"$set": payload})
             else:
                 await self.db.videos.insert_one(payload)
+            if video_id not in replaced:
+                await self._replace_video_evidence(video_id)
+                replaced.add(video_id)
 
         for segment_data in library["segments"]:
             segment = TranscriptSegment(**segment_data)
@@ -261,14 +271,14 @@ class ProcessingService:
             )
             return False
 
+        await self._replace_video_evidence(video_id)
+
         for segment_data in storage:
             segment = TranscriptSegment(video_id=video_id, **segment_data)
             await self.db.transcript_segments.insert_one(segment.dict())
 
-        logger.info(f"Extracting Q&A pairs from {len(storage)} segments...")
-        qa_pairs = await self.llm_service.extract_qa_from_transcript(storage, title)
-        if not qa_pairs:
-            qa_pairs = segments_to_qa(ingested["segments"], video_id, title)
+        logger.info(f"Storing extractive Q&A from {len(storage)} segments...")
+        qa_pairs = segments_to_qa(ingested["segments"], video_id, title)
 
         for qa_data in qa_pairs:
             payload = dict(qa_data)

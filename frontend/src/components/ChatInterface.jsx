@@ -171,7 +171,7 @@ const ChatInterface = ({ language }) => {
       }
 
       if (data.length === 0) {
-        const response = await fetch(`${API}/search`, {
+        const response = await fetch(`${API}/ask`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -189,10 +189,23 @@ const ChatInterface = ({ language }) => {
         });
 
         if (!response.ok) {
-          throw new Error('Search failed');
+          throw new Error('Ask failed');
         }
 
-        data = await response.json();
+        const payload = await response.json();
+        data = (payload.clips || []).map((clip) => ({
+          question: clip.source_question || payload.answer,
+          answer: clip.source_answer || payload.answer,
+          video_id: clip.video_id,
+          video_title: clip.video_title,
+          start_time: clip.start_time,
+          timestamp_url: clip.timestamp_url,
+          youtube_url: clip.youtube_url,
+          confidence_score: clip.confidence_score,
+          related_questions: payload.related_questions || clip.related_questions || [],
+        }));
+        data.refused = !!payload.refused;
+        data.answer = payload.answer || '';
         
         // Cache results for offline use
         if (data.length > 0 && isOnline) {
@@ -208,17 +221,21 @@ const ChatInterface = ({ language }) => {
       // Track analytics
       analyticsService.trackSearch(messageText, language, data.length, searchTime);
 
+      const answerText = data.answer
+        || (data.length > 0 ? data[0].answer : '');
+      const refused = !!data.refused || data.length === 0;
+
       // Create bot response message
       const botMessage = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: data.length > 0 
-          ? `${language === 'hi' ? 'मिले' : 'Found'} ${data.length} ${language === 'hi' ? 'परिणाम' : 'results'}:`
-          : language === 'hi' 
-            ? 'खुशी से इस प्रश्न का उत्तर नहीं मिला। कृपया प्रश्न को दूसरे तरीके से पूछें।'
-            : 'I couldn\'t find an answer to this question. Please try rephrasing it.',
+        content: answerText
+          || (language === 'hi'
+            ? 'इस विषय पर संकलित प्रवचनों में स्पष्ट उत्तर नहीं मिला।'
+            : 'The collected discourses do not contain a clear answer to this.'),
         timestamp: new Date(),
         results: data,
+        refused,
         searchTime: Math.round(searchTime)
       };
 
@@ -317,7 +334,9 @@ const ChatInterface = ({ language }) => {
                 : 'glass-card'
           } rounded-2xl`}>
             <CardContent className="p-4">
-              <p className={`text-sm leading-relaxed ${isUser ? 'text-black' : 'text-white'}`}>
+              <p className={`text-sm leading-relaxed ${
+                isUser ? 'text-black' : message.refused ? 'text-amber-200' : 'text-white'
+              }`}>
                 {message.content}
               </p>
 

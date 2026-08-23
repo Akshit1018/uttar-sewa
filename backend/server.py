@@ -5,7 +5,7 @@ import os
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Depends, Header
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -51,6 +51,7 @@ from backend.services.control_store import (
 )
 from backend.services.database import bootstrap_database
 from backend.db_schema import SETTINGS_DOC_ID, SECRETS_DOC_ID
+from backend.services.control_auth import authorize_control, control_token_required
 from backend.services.byok import (
     apply_env,
     memory_secrets,
@@ -99,6 +100,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+async def require_control(x_control_token: Optional[str] = Header(default=None)):
+    if not authorize_control(x_control_token):
+        raise HTTPException(status_code=401, detail="control token required")
+
 @api_router.get("/")
 async def root():
     return {
@@ -129,10 +135,11 @@ async def health():
         "byok": True,
         "keys_ready": keys["ready"],
         "keys_configured": keys["keys_configured"],
+        "control_locked": control_token_required(),
     }
 
 @api_router.post("/process/start")
-async def start_processing():
+async def start_processing(_auth: None = Depends(require_control)):
     """Start processing all videos from the YouTube channel"""
     settings = await _load_control_settings()
     if not settings.get("processing_enabled"):
@@ -151,7 +158,7 @@ async def start_processing():
 
 
 @api_router.post("/process/ingest")
-async def ingest_youtube_library(body: IngestRequest):
+async def ingest_youtube_library(body: IngestRequest, _auth: None = Depends(require_control)):
     """Fill videos / captions / Q&A from a YouTube payload without the curated fallback."""
     settings = await _load_control_settings()
     if not settings.get("processing_enabled"):
@@ -444,7 +451,7 @@ async def get_control_settings():
 
 
 @api_router.put("/control/settings")
-async def put_control_settings(body: ControlSettingsPatch):
+async def put_control_settings(body: ControlSettingsPatch, _auth: None = Depends(require_control)):
     current = await _load_control_settings()
     patch = {key: value for key, value in body.model_dump().items() if value is not None}
     merged = merge_settings(current, patch)
@@ -492,13 +499,13 @@ def _reconfigure_services() -> None:
 
 
 @api_router.get("/control/keys")
-async def get_control_keys():
+async def get_control_keys(_auth: None = Depends(require_control)):
     stored = await _load_secrets()
     return public_keys_payload(stored)
 
 
 @api_router.put("/control/keys")
-async def put_control_keys(body: ByokKeysPatch):
+async def put_control_keys(body: ByokKeysPatch, _auth: None = Depends(require_control)):
     current = await _load_secrets()
     patch = {key: value for key, value in body.model_dump().items() if value is not None}
     merged = merge_secrets(current, patch)
@@ -506,7 +513,7 @@ async def put_control_keys(body: ByokKeysPatch):
 
 
 @api_router.post("/control/qa/pin")
-async def pin_qa(body: PinQaRequest):
+async def pin_qa(body: PinQaRequest, _auth: None = Depends(require_control)):
     doc = pin_document(body.model_dump())
     try:
         await db.pinned_qa.insert_one(dict(doc))
@@ -636,7 +643,7 @@ async def enrich_companions(body: CompanionQuery):
 
 
 @api_router.post("/control/scrape")
-async def control_scrape(body: ScrapeRequest):
+async def control_scrape(body: ScrapeRequest, _auth: None = Depends(require_control)):
     try:
         return scrape_public_page(body.url)
     except ValueError as error:
@@ -647,7 +654,7 @@ async def control_scrape(body: ScrapeRequest):
 
 
 @api_router.post("/control/enrich/video")
-async def control_enrich_video(body: VideoMetaRequest):
+async def control_enrich_video(body: VideoMetaRequest, _auth: None = Depends(require_control)):
     try:
         return fetch_youtube_meta(body.video_id)
     except Exception as error:
@@ -788,7 +795,7 @@ async def get_system_status():
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/process/clear")
-async def clear_processing_status():
+async def clear_processing_status(_auth: None = Depends(require_control)):
     """Clear all processing status data"""
     try:
         await db.processing_status.delete_many({})

@@ -248,6 +248,52 @@ class MalaState {
     );
   }
 
+  static const allowedCycleLengths = [11, 27, 54, 108];
+
+  int get resolvedCycle =>
+      allowedCycleLengths.contains(beadsPerCycle) ? beadsPerCycle : 108;
+
+  MalaState applyTap() {
+    final cycle = resolvedCycle;
+    var nextCurrent = currentInCycle + 1;
+    var nextCycles = cyclesToday;
+    var completed = false;
+    if (nextCurrent >= cycle) {
+      nextCycles += 1;
+      nextCurrent = 0;
+      completed = true;
+    }
+    return copyWith(
+      beadsToday: beadsToday + 1,
+      cyclesToday: nextCycles,
+      currentInCycle: nextCurrent,
+      completedCycle: completed,
+      beadsPerCycle: cycle,
+    );
+  }
+
+  MalaState applyUndo() {
+    final cycle = resolvedCycle;
+    if (beadsToday <= 0) {
+      return copyWith(beadsPerCycle: cycle, completedCycle: false);
+    }
+    var nextCurrent = currentInCycle;
+    var nextCycles = cyclesToday;
+    if (nextCurrent == 0 && nextCycles > 0) {
+      nextCycles -= 1;
+      nextCurrent = cycle - 1;
+    } else {
+      nextCurrent = nextCurrent > 0 ? nextCurrent - 1 : 0;
+    }
+    return copyWith(
+      beadsToday: beadsToday - 1,
+      cyclesToday: nextCycles,
+      currentInCycle: nextCurrent,
+      completedCycle: false,
+      beadsPerCycle: cycle,
+    );
+  }
+
   MalaState copyWith({
     int? beadsToday,
     int? cyclesToday,

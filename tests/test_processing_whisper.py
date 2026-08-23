@@ -25,6 +25,14 @@ class FakeCollection:
                 return dict(doc)
         return None
 
+    async def delete_many(self, filt):
+        remaining = []
+        for doc in self.docs:
+            if all(doc.get(key) == value for key, value in filt.items()):
+                continue
+            remaining.append(doc)
+        self.docs = remaining
+
 
 class FakeDB:
     def __init__(self):
@@ -141,4 +149,33 @@ def test_captions_win_so_whisper_is_not_called(tmp_path):
     assert called["n"] == 0
     assert db.transcript_segments.docs[0]["text"] == "कैप्शन पाठ"
     assert db.question_answers.docs[0]["answer"] == "कैप्शन पाठ"
+    assert db.question_answers.docs[0]["source"] == "transcript"
+    assert "Gemini invented this teaching" not in db.question_answers.docs[0]["answer"]
     assert any(upd[1]["$set"].get("transcript_processed") is True for upd in db.videos.updates)
+
+
+def test_gemini_paraphrase_is_not_stored_as_grounded_corpus():
+    db = FakeDB()
+    service = ProcessingService(
+        db,
+        youtube_service=FakeYouTube(
+            captions=[{"start_time": 1, "end_time": 4, "text": "राम नाम सत्य है", "language": "hi"}]
+        ),
+        llm_service=FakeLLM(
+            pairs=[
+                {
+                    "question": "What should a seeker do?",
+                    "answer": "Gemini invented this teaching",
+                    "start_time": 1,
+                    "end_time": 4,
+                    "confidence_score": 0.99,
+                    "language": "en",
+                    "tags": ["llm"],
+                }
+            ]
+        ),
+    )
+    asyncio.run(service._process_single_video_smart(VIDEO, "status"))
+    answers = [doc["answer"] for doc in db.question_answers.docs]
+    assert answers == ["राम नाम सत्य है"]
+    assert all(doc.get("source") == "transcript" for doc in db.question_answers.docs)

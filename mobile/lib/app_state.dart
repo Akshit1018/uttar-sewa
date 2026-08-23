@@ -43,6 +43,7 @@ class AppState extends ChangeNotifier {
     channelId = prefs.getString('channelId') ?? 'all';
     deviceId = prefs.getString('deviceId') ?? DateTime.now().millisecondsSinceEpoch.toString();
     await prefs.setString('deviceId', deviceId);
+    api.controlToken = prefs.getString('controlToken') ?? '';
     mala = MalaState(
       beadsToday: prefs.getInt('beads') ?? 0,
       cyclesToday: prefs.getInt('cycles') ?? 0,
@@ -109,20 +110,27 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<void> setControlToken(String value) async {
+    api.controlToken = value.trim();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('controlToken', api.controlToken);
+    notifyListeners();
+  }
+
   Future<void> tapBead() async {
-    mala = await api.tap(mala);
+    mala = mala.applyTap();
+    notifyListeners();
     await persistMala();
     await native.updateCount(beads: mala.currentInCycle, cycle: mala.beadsPerCycle);
     if (liveActivityOn) {
       await native.updateLiveActivity(beads: mala.currentInCycle, cycle: mala.beadsPerCycle);
     }
-    notifyListeners();
   }
 
   Future<void> undoBead() async {
-    mala = await api.undo(mala);
-    await persistMala();
+    mala = mala.applyUndo();
     notifyListeners();
+    await persistMala();
   }
 
   Future<AskResult> ask(String query, List<String> history) async {
