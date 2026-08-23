@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+CLIP_TITLE_MAX = 80
+
 try:
     import whisper as whisper_lib
 except ImportError:
@@ -49,6 +51,29 @@ def ingest_transcript(
     return {"source": "none", "segments": [], "invented": False}
 
 
+def format_clip_clock(start_s: float) -> str:
+    total = max(0, int(start_s))
+    hours, remainder = divmod(total, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes}:{seconds:02d}"
+
+
+def clip_title_from_segment(text: str, start_s: float) -> str:
+    """YouTube-style timestamp + short snippet. Never invents a question."""
+    clock = format_clip_clock(start_s)
+    words = (text or "").strip().split()
+    snippet = " ".join(words[:12])
+    prefix = f"{clock} — "
+    budget = CLIP_TITLE_MAX - len(prefix)
+    if budget < 8:
+        return clock
+    if len(snippet) > budget:
+        snippet = snippet[: max(0, budget - 1)].rstrip() + "…"
+    return f"{prefix}{snippet}"
+
+
 def segments_to_qa(
     segments: List[Dict[str, Any]],
     video_id: str,
@@ -60,14 +85,15 @@ def segments_to_qa(
             {
                 "video_id": video_id,
                 "video_title": video_title,
-                "question": item["text"][:80],
+                "question": clip_title_from_segment(item["text"], item["start"]),
                 "answer": item["text"],
                 "start_time": item["start"],
                 "end_time": item["end"],
                 "source": "transcript",
+                "kind": "clip",
                 "language": "hi",
                 "confidence_score": 0.7,
-                "tags": ["transcript"],
+                "tags": ["transcript", "clip"],
             }
         )
     return rows

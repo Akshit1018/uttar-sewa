@@ -12,20 +12,20 @@ Legend: REAL | PARTIAL | COSMETIC | MOCKED | BROKEN | HIDDEN | DEAD | DUPLICATE 
 | Lexical `/api/search` | **REAL** | `search_questions` uses `rank_answers` only; `test_search_handler_is_lexical_only` | Hits without refuse. Weak matches still look like answers. |
 | “AI understands your question” | **MISLEADING** | About/translations rewritten; leftover dead `llm_service` still in tree | Seeker who reads old Admin/test_result.md still thinks Gemini ranks search. |
 | Channel ingest of a guru library | **PARTIAL** | `ingest_video_list` + YouTube captions/Whisper | Works if captions or local audio exist. Caption-less videos stay unprocessed. |
-| PWA “custom channel URL” on Start | **COSMETIC / BROKEN** | `ProcessingStatus.jsx` POSTs `{channel_url}`; `start_processing()` takes **no body** (`server.py`) | Operator believes they ingested a different channel. Default `bhajanmarg` still runs. |
+| PWA “custom channel URL” on Start | **REAL** (API + test) | `ProcessStartRequest` → `start_channel_processing(channel_url)`; `test_process_start_forwards_channel_url` | Custom channel is no longer discarded. Live YouTube fetch still needs a key. |
 | Flutter YouTube library ingest | **PARTIAL** | Control → `POST /process/ingest` | Hidden from PWA. Needs token when locked. |
 | Unique indexes + upsert ingest | **REAL** (code + tests) | `db_schema.py`, `_persist_extractive` | Crash after upsert no longer empties the video. Unique index create may silently fall back non-unique (`database.py` except). |
 | Curated library fallback | **REAL** and **MISLEADING** | `_load_qa_database` → `library_as_qa()` | App “works” with 30 generic pairs that are not the seeker’s guru. Citations look like answers. |
-| Empty-corpus Chat honesty | **PARTIAL** | Banners when `total_qa_pairs == 0` | If seed ran, count is 30, banner hidden, answers are curated — seeker thinks the library is theirs. |
+| Empty-corpus Chat honesty | **REAL** (count source) | Banner when `ingested_qa == 0`; paste-URL ingest | Seed library no longer hides the empty-ingest state. Curated answers are labeled. |
 | Japa mala (count beads) | **REAL** locally | `mala_counter.py` / `lib/mala.js` / `MalaState.applyTap` | Beads increment offline. |
 | Japa synced across devices | **PARTIAL** | Flutter `/mala/sync`; PWA never calls it | Two clients, two malas. README still says daily counts sync. |
 | Hold orb to ask | **REAL** (wired) | Flutter focus Chat; PWA `JapaChatSheet` | **UNVERIFIED** hold timing on real phones. |
 | Live Activity / Watch | **PARTIAL** | Start/stop methods exist; Android returns `false`; iOS stubs | Buttons toggle state in Dart. Device proof **UNVERIFIED**. Overlay permission flow **UNVERIFIED**. |
 | Volume-key bead | **PARTIAL** | Android `onKeyDown` → `volumeTap` | Eats volume keys while the Activity is focused. iOS: no equivalent. |
-| BYOK | **PARTIAL** | Flutter UI + Mongo `control_secrets` cleartext | Keys reconfigure YouTube/Gemini/Mistral. Ask/search still do not use those models. |
+| BYOK | **PARTIAL** | Flutter UI + Mongo `control_secrets` cleartext | YouTube key is required for ingest. Gemini/Mistral are labeled unused by Chat/Search. |
 | Control token | **PARTIAL** | Optional; demo-open writes | Cloud routes fail-closed. Keys/ingest open on a LAN demo. |
 | Cloud backup/restore | **HIDDEN** | API + Firestore service; no client UI | Operator can wipe Mongo via curl if token+creds exist. Seeker never sees it. |
-| Public companions (Gita/Wiki) | **PARTIAL** | Flutter only; PWA copy-only | Split product. Companions never enter the video answer string. |
+| Public companions (Gita/Wiki) | **PARTIAL** | Flutter + PWA `include_companions`; labeled separately | Companions never enter the video answer string. |
 | Favorites ♥ | **REAL** (local) | PWA `useFavorites` | Lost on clear / new browser. Not on Flutter. |
 | Server pins | **REAL** (API) | Flutter pin | Not on PWA. Requires control auth when token set. |
 | Recommendations | **PARTIAL** | `recommend_from_history` over same 2000-row bag | Recycles corpus questions. Not personalized beyond recent query strings. |
@@ -41,9 +41,9 @@ Legend: REAL | PARTIAL | COSMETIC | MOCKED | BROKEN | HIDDEN | DEAD | DUPLICATE 
 | Conversation memory | **PARTIAL** | Last N user strings sent as `conversation_history` | Not a stored thread. Refresh loses it. |
 | Multi-user accounts | **MISSING** → treat as **DEAD** for SaaS claims | No users table | One Mongo, one operator. |
 | Rate limiting | **MISSING** | Open `/ask` `/search` `/feedback` | Abuse surface. |
-| Pagination | **MISSING** | `to_list(2000)` | Q&A 2001+ invisible to ask/search. |
-| Question quality | **MISLEADING** | `segments_to_qa` question = `text[:80]` | “Q&A” is caption slices, not real questions. |
-| PWA API bootstrap | **PARTIAL** | `resolveBackendUrl`; `.env.example` has origin | Empty CRA env no longer becomes `undefined/api`. Phone PWA still needs same-origin or a filled env. |
+| Pagination | **PARTIAL** | Query-scoped cap 400 + recent fallback | Later talks can still miss if tokens do not match. Not vector search. |
+| Question quality | **PARTIAL** | Clip titles are timestamps + snippets | Honest clips, not invented Q&A. Ranking still lexical. |
+| PWA API bootstrap | **PARTIAL** | Persist `uttar_sewa_backend_url` in Settings + reload | Phone PWA can point at a LAN API without a rebuild. |
 | Flutter API bootstrap | **PARTIAL** | Settings field + persist | Default remains `127.0.0.1`. First-run still dead until the seeker types a LAN URL. |
 | Accessibility | **PARTIAL** | Orb Semantics / aria-labels | Most cards unlabeled. **UNVERIFIED** with TalkBack. |
 | Notifications / sandhya | **PARTIAL** | PWA `notificationService` if permission; Flutter native none for sandhya | Easy to miss. |

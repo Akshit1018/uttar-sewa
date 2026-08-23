@@ -23,8 +23,8 @@ PROVIDERS: List[Dict[str, Any]] = [
         "label_hi": "जेमिनी API कुंजी",
         "env": "GEMINI_API_KEY",
         "docs": "https://aistudio.google.com/apikey",
-        "help": "Google AI Studio → Get API key. Used to extract Q&A from transcripts.",
-        "required": True,
+        "help": "Unused by Chat/Search. Optional leftover for transcript extract experiments — answers stay extractive.",
+        "required": False,
     },
     {
         "id": "mistral",
@@ -32,7 +32,7 @@ PROVIDERS: List[Dict[str, Any]] = [
         "label_hi": "मिस्ट्रल API कुंजी",
         "env": "MISTRAL_API_KEY",
         "docs": "https://console.mistral.ai/api-keys",
-        "help": "Optional. Improves multilingual query understanding.",
+        "help": "Unused by Chat/Search. Optional leftover; ranking is lexical.",
         "required": False,
     },
     {

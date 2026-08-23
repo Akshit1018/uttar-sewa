@@ -61,6 +61,7 @@ class JapaOrb extends StatefulWidget {
 class _JapaOrbState extends State<JapaOrb> {
   Timer? _hold;
   bool _openedAsk = false;
+  DateTime? _lastTap;
 
   @override
   void dispose() {
@@ -80,10 +81,19 @@ class _JapaOrbState extends State<JapaOrb> {
 
   void _up(TapUpDetails _) {
     _hold?.cancel();
-    if (!_openedAsk) {
-      HapticFeedback.lightImpact();
-      widget.state.tapBead();
+    if (_openedAsk) {
+      return;
     }
+    final now = DateTime.now();
+    if (_lastTap != null && now.difference(_lastTap!) < const Duration(milliseconds: 280)) {
+      _lastTap = null;
+      HapticFeedback.selectionClick();
+      widget.state.undoBead();
+      return;
+    }
+    _lastTap = now;
+    HapticFeedback.lightImpact();
+    widget.state.tapBead();
   }
 
   void _cancel() {
@@ -99,8 +109,8 @@ class _JapaOrbState extends State<JapaOrb> {
       child: Semantics(
         button: true,
         label: widget.state.t(
-          'जप माला ${mala.currentInCycle} में ${mala.beadsPerCycle}। टैप मनका, देर दबाएँ प्रश्न।',
-          'Japa mala ${mala.currentInCycle} of ${mala.beadsPerCycle}. Tap for a bead, hold to ask.',
+          'जप माला ${mala.currentInCycle} में ${mala.beadsPerCycle}। टैप मनका, दो बार टैप वापस, देर दबाएँ प्रश्न।',
+          'Japa mala ${mala.currentInCycle} of ${mala.beadsPerCycle}. Tap for a bead, double-tap undo, hold to ask.',
         ),
         child: GestureDetector(
         onTapDown: _down,

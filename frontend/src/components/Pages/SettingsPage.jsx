@@ -7,7 +7,7 @@ import { Input } from '../ui/input';
 import PageShell from '../Layout/PageShell';
 import { readSettings, writeSettings } from '../../lib/practice';
 import { notificationService } from '../../services/notificationService';
-import { API, BACKEND_URL } from '../../lib/backend';
+import { API, BACKEND_URL, readStoredBackendUrl, writeStoredBackendUrl } from '../../lib/backend';
 import { readControlToken, writeControlToken } from '../../lib/control';
 
 const SettingsPage = ({ language, setLanguage }) => {
@@ -15,6 +15,7 @@ const SettingsPage = ({ language, setLanguage }) => {
   const [canInstall, setCanInstall] = useState(false);
   const [installEvent, setInstallEvent] = useState(null);
   const [controlToken, setControlToken] = useState(readControlToken);
+  const [backendUrl, setBackendUrl] = useState(() => readStoredBackendUrl() || BACKEND_URL);
 
   useEffect(() => {
     setPrefs(readSettings());
@@ -80,6 +81,34 @@ const SettingsPage = ({ language, setLanguage }) => {
           checked={Boolean(prefs.notifications)}
           onCheckedChange={(value) => savePrefs({ notifications: value })}
         />
+      )
+    },
+    {
+      icon: Globe,
+      title: language === 'hi' ? 'API पता' : 'API address',
+      description: language === 'hi'
+        ? 'यदि चैट लूपबैक से जुड़ जाए तो LAN पता सेव करें, फिर रीलोड करें।'
+        : 'If Chat hits loopback on another device, save the LAN address and reload.',
+      action: (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            value={backendUrl}
+            onChange={(event) => setBackendUrl(event.target.value)}
+            className="bg-white/5 border-white/20 text-white w-48"
+            placeholder="http://192.168.1.10:8000"
+            aria-label={language === 'hi' ? 'API पता' : 'API address'}
+          />
+          <Button
+            variant="outline"
+            className="border-white/20 text-gray-300 hover:bg-white/10"
+            onClick={() => {
+              writeStoredBackendUrl(backendUrl);
+              window.location.reload();
+            }}
+          >
+            {language === 'hi' ? 'सेव' : 'Save'}
+          </Button>
+        </div>
       )
     },
     {

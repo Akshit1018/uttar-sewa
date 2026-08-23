@@ -14,7 +14,8 @@
 | POST `/api/mala/tap` \| `/undo` | Server-side math (Flutter no longer depends on this for the orb) |
 | POST `/api/mala/sync` | Best-effort day persist |
 | POST `/api/process/ingest` | YouTube videos → extractive corpus |
-| POST `/api/process/start` | Incremental caption/Whisper processing |
+| POST `/api/process/from-url` | Paste a watch or channel URL (Chat activation) |
+| POST `/api/process/start` | Incremental processing; optional JSON `channel_url` |
 | GET/PUT `/api/control/keys` | BYOK; masked GET |
 | POST `/api/enrich/companions` | Labeled public cards |
 | POST `/api/control/scrape` | Allowlisted page; no redirects |
@@ -25,4 +26,4 @@ Mongo `uttar_sewa`: videos, transcript_segments, question_answers, processing_st
 
 Fallback: `backend/spiritual_qa_content.py` when Q&A collection is empty or Mongo is down.
 
-Ask/search load at most **2000** Q&A documents into process memory (`_load_qa_database`). Extractive “questions” from ingest are the first 80 characters of a caption (`segments_to_qa`). `POST /process/start` does not read a JSON `channel_url` (PWA custom-channel field is discarded).
+Ask/search load a **query-scoped** candidate set (cap 400) via `qa_corpus.qa_candidate_filter`, then rank in process. Ingest clip titles are YouTube-style `M:SS — snippet` (`clip_title_from_segment`), not invented questions. `POST /process/start` forwards `channel_url` when provided. Stats expose `curated_qa` / `ingested_qa` / `seed_only`.

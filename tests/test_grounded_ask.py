@@ -28,4 +28,6 @@ def test_follow_up_uses_history():
 def test_curated_clips_are_labeled_when_no_video_id():
     result = grounded_ask("भक्ति का सच्चा अर्थ क्या है?", library_as_qa(), language="hi")
     assert result["clips"]
-    assert result["clips"][0]["citation_kind"] in {"curated", "video"}
+    assert result["clips"][0]["citation_kind"] == "curated"
+    assert result["evidence_kind"] == "curated"
+    assert result["seed_only"] is True

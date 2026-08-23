@@ -22,7 +22,11 @@ def _clip_from(item: Dict[str, Any]) -> Dict[str, Any]:
     video_id = item.get("video_id") or ""
     start = float(item.get("start_time") or 0)
     end = float(item.get("end_time") or start)
-    kind = "video" if video_id else "curated"
+    source = item.get("source") or ""
+    if source == "curated_library" or not video_id:
+        kind = "curated"
+    else:
+        kind = "video"
     return {
         "video_id": video_id,
         "video_title": item.get("video_title") or ("Curated teaching" if kind == "curated" else "Spiritual discourse"),
@@ -112,10 +116,22 @@ def grounded_ask(
         "limit": limit,
         "channel_id": channel_id,
     })
+    clips = state.get("clips") or []
+    kinds = {clip.get("citation_kind") for clip in clips if clip.get("citation_kind")}
+    if not kinds:
+        evidence_kind = "none"
+    elif kinds == {"curated"}:
+        evidence_kind = "curated"
+    elif kinds == {"video"}:
+        evidence_kind = "transcript"
+    else:
+        evidence_kind = "mixed"
     return {
         "answer": state.get("answer") or "",
         "refused": bool(state.get("refused")),
-        "clips": state.get("clips") or [],
+        "clips": clips,
         "expanded_query": state.get("expanded_query") or question,
         "top_score": float(state.get("top_score") or 0),
+        "evidence_kind": evidence_kind,
+        "seed_only": evidence_kind == "curated" and bool(clips),
     }

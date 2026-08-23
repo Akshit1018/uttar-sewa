@@ -120,6 +120,7 @@ class ApiClient {
       'limit': 3,
       'conversation_history': history,
       'channel_id': channelId == 'all' ? null : channelId,
+      'include_companions': true,
     }) as Map<String, dynamic>;
     return AskResult.fromJson(data);
   }
@@ -164,6 +165,10 @@ class ApiClient {
       'video_ids': videoIds,
       if (channel != null) 'channel': channel,
     }) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> ingestFromUrl(String url) async {
+    return await _post('/process/from-url', {'url': url}) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> clearProcessing() async {

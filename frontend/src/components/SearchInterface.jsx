@@ -274,7 +274,7 @@ const SearchInterface = ({ language }) => {
           <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 fade-in">
             {[
               { value: stats.total_videos, label: t('totalVideos', language), color: 'from-blue-500/20 to-blue-500/5', icon: Play },
-              { value: stats.total_qa_pairs, label: t('qaTotal', language), color: 'from-green-500/20 to-green-500/5', icon: Sparkles },
+              { value: stats.ingested_qa ?? stats.total_qa_pairs, label: language === 'hi' ? 'इंजेस्टेड' : 'Ingested', color: 'from-green-500/20 to-green-500/5', icon: Sparkles },
               { value: stats.processed_videos, label: t('processedVideos', language), color: 'from-purple-500/20 to-purple-500/5', icon: Zap }
             ].map((stat, index) => {
               const IconComponent = stat.icon;

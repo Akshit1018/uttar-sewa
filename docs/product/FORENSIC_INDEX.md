@@ -5,6 +5,8 @@
 **Sequence used:** RECONSTRUCT → VERIFY → EXPERIENCE (code-simulated) → COMPARE → ATTACK → DISPROVE → RANK → RE-ATTACK  
 **Method:** Code archaeology of this revision (`531292d` + working tree). Browser/device **UNVERIFIED**. `parallel-cli` and Firecrawl CLI **not installed**; competitor facts from web search only.
 
+Green Team follow-up: [GREEN_TEAM_TASKS.md](GREEN_TEAM_TASKS.md).
+
 Read in this order:
 
 1. [FORENSIC_JOURNEYS.md](FORENSIC_JOURNEYS.md) — what the product actually is  

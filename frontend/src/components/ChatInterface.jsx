@@ -20,8 +20,9 @@ import { useChannels } from '../hooks/useChannels';
 import { shareCard } from '../lib/practice';
 
 import { API } from '../lib/backend';
+import { controlHeaders } from '../lib/control';
 
-const ChatInterface = ({ language, stats: statsFromApp }) => {
+const ChatInterface = ({ language, stats: statsFromApp, channels: channelsProp, channelId: channelIdProp, setChannelId: setChannelIdProp }) => {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,12 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
   const stats = statsFromApp || localStats;
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [followUps, setFollowUps] = useState([]);
-  const { channels, channelId, setChannelId } = useChannels();
+  const [ingestUrl, setIngestUrl] = useState('');
+  const [ingesting, setIngesting] = useState(false);
+  const localChannels = useChannels();
+  const channels = channelsProp || localChannels.channels;
+  const channelId = channelIdProp ?? localChannels.channelId;
+  const setChannelId = setChannelIdProp || localChannels.setChannelId;
   
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -39,7 +45,7 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
   // Custom hooks
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const { addToHistory } = useSearchHistory();
-  const { isOnline, getCachedResults, cacheSearchResults } = useOfflineStorage();
+  const { isOnline, cacheSearchResults } = useOfflineStorage();
   const { measureSearchTime } = usePerformanceMonitor();
   
   // Voice search
@@ -135,6 +141,46 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
     }
   };
 
+  const handleIngestUrl = async () => {
+    const url = ingestUrl.trim();
+    if (!url) {
+      toast({
+        title: language === 'hi' ? 'URL दर्ज करें' : 'Enter a URL',
+        description: language === 'hi' ? 'YouTube वीडियो या चैनल का पता चिपकाएँ।' : 'Paste a YouTube video or channel address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIngesting(true);
+    try {
+      const response = await fetch(`${API}/process/from-url`, {
+        method: 'POST',
+        headers: controlHeaders(),
+        body: JSON.stringify({ url }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.detail || 'Ingest failed');
+      }
+      setIngestUrl('');
+      await loadStats();
+      toast({
+        title: language === 'hi' ? 'इंजेस्ट शुरू' : 'Ingest started',
+        description: language === 'hi'
+          ? 'प्रवचन जुड़ गए तो प्रश्न पूछें।'
+          : 'Ask again once the discourse is stored.',
+      });
+    } catch (error) {
+      toast({
+        title: language === 'hi' ? 'इंजेस्ट नहीं हुआ' : 'Ingest failed',
+        description: error.message || (language === 'hi' ? 'YouTube कुंजी या नेट देखें।' : 'Check the YouTube key or network.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIngesting(false);
+    }
+  };
+
   const handleSendMessage = async (messageText = query) => {
     if (!messageText.trim()) {
       toast({
@@ -182,6 +228,7 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
               .slice(-4)
               .map((item) => item.content),
             channel_id: channelId === 'all' ? null : channelId,
+            include_companions: true,
           }),
         });
 
@@ -200,9 +247,13 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
           youtube_url: clip.youtube_url,
           confidence_score: clip.confidence_score,
           related_questions: payload.related_questions || clip.related_questions || [],
+          citation_kind: clip.citation_kind,
         }));
         data.refused = !!payload.refused;
         data.answer = payload.answer || '';
+        data.evidence_kind = payload.evidence_kind;
+        data.seed_only = !!payload.seed_only;
+        data.companions = payload.companions || [];
         
         // Cache results for offline use
         if (data.length > 0 && isOnline) {
@@ -233,6 +284,9 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
         timestamp: new Date(),
         results: data,
         refused,
+        seedOnly: !!data.seed_only,
+        evidenceKind: data.evidence_kind,
+        companions: data.companions || [],
         searchTime: Math.round(searchTime)
       };
 
@@ -338,6 +392,13 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
               }`}>
                 {message.content}
               </p>
+              {message.seedOnly && (
+                <p className="mt-2 text-xs text-amber-200">
+                  {language === 'hi'
+                    ? 'यह बीज पुस्तकालय है, आपके गुरु का प्रवचन नहीं।'
+                    : 'This is the seed library, not your guru’s discourse.'}
+                </p>
+              )}
 
               {/* Search Results */}
               {message.results && message.results.length > 0 && (
@@ -393,6 +454,11 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
                           <Star className="w-3 h-3 mr-1" />
                           {Number.isFinite(Number(result.confidence_score)) ? `${Math.round(result.confidence_score * 100)}%` : '—'}
                         </Badge>
+                        {result.citation_kind === 'curated' && (
+                          <Badge className="bg-amber-500/20 text-amber-200 text-xs px-2 py-1">
+                            {language === 'hi' ? 'संग्रहित' : 'Curated'}
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
@@ -411,6 +477,19 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
                         />
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+
+              {message.companions && message.companions.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-gray-400">
+                    {language === 'hi' ? 'सार्वजनिक पाठ (वीडियो नहीं)' : 'Public texts (not videos)'}
+                  </p>
+                  {message.companions.slice(0, 3).map((card, index) => (
+                    <p key={`${card.title || card.source}-${index}`} className="text-xs text-gray-300 leading-relaxed">
+                      {(card.title || card.source || 'Companion')}: {(card.text || card.excerpt || '').slice(0, 180)}
+                    </p>
                   ))}
                 </div>
               )}
@@ -452,19 +531,44 @@ const ChatInterface = ({ language, stats: statsFromApp }) => {
           </div>
         </div>
 
-        {stats && Number(stats.total_qa_pairs || 0) === 0 && (
-          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
-            {language === 'hi'
-              ? 'संग्रह खाली है। प्रोसेसिंग से वीडियो इंजेस्ट करें — तब तक उत्तर नहीं मिलेंगे।'
-              : 'The corpus is empty. Ingest videos from Processing — questions will be refused until then.'}
+        {stats && Number(stats.ingested_qa || 0) === 0 && (
+          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100 space-y-2">
+            <p>
+              {language === 'hi'
+                ? Number(stats.curated_qa || 0) > 0
+                  ? 'अभी केवल बीज पुस्तकालय है। अपना प्रवचन जोड़ने के लिए YouTube URL चिपकाएँ।'
+                  : 'संग्रह खाली है। अपना पहला प्रवचन जोड़ने के लिए YouTube URL चिपकाएँ।'
+                : Number(stats.curated_qa || 0) > 0
+                  ? 'Only the seed library is present. Paste a YouTube URL to add a real discourse.'
+                  : 'The corpus is empty. Paste a YouTube URL to add the first discourse.'}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="url"
+                value={ingestUrl}
+                onChange={(event) => setIngestUrl(event.target.value)}
+                placeholder="https://www.youtube.com/watch?v=…"
+                className="bg-black/30 border-amber-500/30 text-white placeholder-amber-100/50"
+                aria-label={language === 'hi' ? 'YouTube पता' : 'YouTube URL'}
+              />
+              <Button
+                onClick={handleIngestUrl}
+                disabled={ingesting}
+                className="bg-white text-black hover:bg-gray-100"
+              >
+                {ingesting
+                  ? (language === 'hi' ? 'जोड़ रहे हैं…' : 'Adding…')
+                  : (language === 'hi' ? 'जोड़ें' : 'Add')}
+              </Button>
+            </div>
           </div>
         )}
 
         {stats && (
           <div className="grid grid-cols-3 gap-2 mt-3">
             {[
-              { value: stats.total_videos, label: t('totalVideos', language) },
-              { value: stats.total_qa_pairs, label: t('qaTotal', language) },
+              { value: stats.ingested_qa ?? 0, label: language === 'hi' ? 'इंजेस्टेड' : 'Ingested' },
+              { value: stats.curated_qa ?? 0, label: language === 'hi' ? 'बीज' : 'Seed' },
               { value: stats.processed_videos, label: t('processedVideos', language) }
             ].map((stat, index) => (
               <div key={index} className="text-center">

@@ -10,14 +10,16 @@
 
 ## Product gaps still open
 
-- PWA Settings has no BYOK or control-token field
+- PWA Settings has control-token + persisted API URL; YouTube/Gemini key paste is still Flutter Control
 - Flutter Search empty-results / error recovery is thin
-- Default API base `http://127.0.0.1:8000/api` is wrong on a physical device (emulator: `10.0.2.2`)
+- Default Flutter API base `http://127.0.0.1:8000/api` is wrong on a physical device until Settings is saved
 - Two admin UIs (Flutter Control vs React Admin) can drift
 - `ultra_video_service` appears unused
 - `feedback` collection is not in `db_schema`
-- CORS `*` + credentials
 - Keys stored cleartext in Mongo
+- `POST /process/from-url` and `/process/start` still run in-process (die with the worker)
+- Pin (Flutter) vs heart (PWA) favorites remain split
+- Flutter/PWA on a real device: UNVERIFIED in this environment
 
 ## Do not “fix” by rewriting
 

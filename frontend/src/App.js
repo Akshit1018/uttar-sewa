@@ -29,7 +29,7 @@ const MainApp = () => {
   const [language, setLanguage] = useState('hi'); // Default to Hindi as requested
   const [chatOpen, setChatOpen] = useState(false);
   const { state: malaState, tap, undo, recordQuestion, practice, reload } = useMala(language);
-  const { channelId } = useChannels();
+  const { channels, channelId, setChannelId } = useChannels();
 
   useEffect(() => {
     loadStats();
@@ -126,7 +126,7 @@ const MainApp = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'chat':
-        return <ChatInterface language={language} stats={stats} />;
+        return <ChatInterface language={language} stats={stats} channels={channels} channelId={channelId} setChannelId={setChannelId} />;
       case 'sadhana':
         return <SadhanaDashboard language={language} state={malaState} onPracticeChange={reload} />;
       case 'search':
@@ -146,7 +146,7 @@ const MainApp = () => {
       case 'settings':
         return <SettingsPage language={language} setLanguage={setLanguage} />;
       default:
-        return <ChatInterface language={language} stats={stats} />;
+        return <ChatInterface language={language} stats={stats} channels={channels} channelId={channelId} setChannelId={setChannelId} />;
     }
   };
 

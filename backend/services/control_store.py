@@ -67,6 +67,9 @@ def dashboard_payload(
             "processed_videos": int(stats.get("processed_videos") or 0),
             "unprocessed_videos": int(stats.get("unprocessed_videos") or 0),
             "total_qa_pairs": qa,
+            "curated_qa": int(stats.get("curated_qa") or 0),
+            "ingested_qa": int(stats.get("ingested_qa") if stats.get("ingested_qa") is not None else qa),
+            "seed_only": bool(stats.get("seed_only")) if "seed_only" in stats else qa == 0,
             "pinned_qa": int(pinned_count or 0),
         },
         "controls": {

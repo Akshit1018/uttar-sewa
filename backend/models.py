@@ -172,6 +172,14 @@ class IngestRequest(BaseModel):
     video_ids: List[str] = []
     channel: Optional[str] = None
 
+
+class ProcessStartRequest(BaseModel):
+    channel_url: Optional[str] = None
+
+
+class IngestUrlRequest(BaseModel):
+    url: str = ""
+
 class ProcessingStatus(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     status: str  # pending, processing, completed, failed

@@ -99,3 +99,13 @@
 **Symptom:** Flutter Chat / PWA orb omitted `channel_id`; offline Chat reused search cache; Live/Watch start-only; undo skipped native count.
 
 **Fix:** Channel on all ask clients; offline throws; stop Live/Watch methods; undo calls `updateCount`.
+
+## Green Team activation + corpus honesty (2026-08-23)
+
+**Symptom:** Custom channel URL discarded; seed library hid empty-corpus; questions were caption `[:80]`; ask loaded 2000 docs.
+
+**Root cause:** HTTP handler dropped `channel_url`; banners used total count; slicer treated slices as questions; uncapped RAM dump.
+
+**Fix:** `ProcessStartRequest` + `/process/from-url`; `curated_qa`/`ingested_qa`/`seed_only`; timestamped clip titles; query-scoped load (cap 400); Chat paste-URL; PWA persisted API URL; Flutter orb double-tap undo; Gemini marked unused.
+
+**Regression:** `tests/test_green_team_corpus.py` (116 pytest total).

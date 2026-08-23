@@ -29,11 +29,11 @@ Adversarial inspection (2026-08-23): see [`RED_TEAM_FINDINGS.md`](RED_TEAM_FINDI
 
 | ID | Problem | Severity | Status | Validation |
 |---|---|---|---|---|
-| F-NEW-01 | PWA custom channel URL ignored by `/process/start` | P0 | DISCOVERED | Handler takes no body |
-| F-NEW-02 | Seeded 30 pairs hide empty-corpus banner | P0 | DISCOVERED | Banner uses count, not source |
-| F-NEW-03 | Q&A questions are caption `[:80]` | P1 | DISCOVERED | `segments_to_qa` |
-| F-NEW-04 | Ask/search RAM-load 2000 docs | P1 | DISCOVERED | `_load_qa_database` |
-| F-NEW-07 | BYOK Gemini/Mistral unused by ask | P2 | DISCOVERED | No call sites |
+| F-NEW-01 | PWA custom channel URL ignored by `/process/start` | P0 | DONE | `test_process_start_forwards_channel_url` |
+| F-NEW-02 | Seeded 30 pairs hide empty-corpus banner | P0 | DONE | `ingested_qa` / `seed_only` + Chat paste URL |
+| F-NEW-03 | Q&A questions are caption `[:80]` | P1 | DONE | Timestamped clip titles, not invented Qs |
+| F-NEW-04 | Ask/search RAM-load 2000 docs | P1 | DONE | Query-scoped cap 400 |
+| F-NEW-07 | BYOK Gemini/Mistral unused by ask | P2 | DONE | Gemini optional; help says unused |
 
 ## Completeness (honest)
 

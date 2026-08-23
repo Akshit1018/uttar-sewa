@@ -230,6 +230,8 @@ def library_as_qa() -> List[Dict[str, Any]]:
             "channel_id": channel["id"] if channel else topic,
             "channel_name": channel["name"] if channel else topic,
             "language": "hi" if _has_devanagari(qa["question"]) else "en",
+            "source": "curated_library",
+            "kind": "curated",
         })
     return items
 

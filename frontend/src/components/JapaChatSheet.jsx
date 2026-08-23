@@ -32,6 +32,7 @@ const JapaChatSheet = ({ language, open, onClose, onAsked, channelId }) => {
           conversation_history: history.slice(-4),
           limit: 3,
           channel_id: channelId && channelId !== 'all' ? channelId : null,
+          include_companions: true,
         }),
       });
       if (!response.ok) {

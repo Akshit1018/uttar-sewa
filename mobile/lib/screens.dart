@@ -15,10 +15,12 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
+  final _urlController = TextEditingController();
   final _focus = FocusNode();
   final _history = <String>[];
   AskResult? _result;
   bool _loading = false;
+  bool _ingesting = false;
   int _seenAskTick = 0;
 
   Future<void> _send([String? text]) async {
@@ -58,14 +60,37 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     widget.state.removeListener(_focusIfAsked);
     _controller.dispose();
+    _urlController.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  Future<void> _ingestUrl() async {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) return;
+    setState(() => _ingesting = true);
+    try {
+      await widget.state.api.ingestFromUrl(url);
+      _urlController.clear();
+      await widget.state.refreshDashboard();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.state.t('प्रवचन जोड़ा जा रहा है', 'Discourse ingest started'))),
+      );
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
+    } finally {
+      if (mounted) setState(() => _ingesting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
-    final qaCount = asInt((state.dashboard?.stats ?? const {})['total_qa_pairs']);
+    final stats = state.dashboard?.stats ?? const {};
+    final ingested = asInt(stats['ingested_qa']);
+    final curated = asInt(stats['curated_qa']);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
@@ -75,14 +100,30 @@ class _ChatScreenState extends State<ChatScreen> {
           state.t('उत्तर केवल वीडियो से। होल्ड = पूछें।', 'Answers only from videos. Hold the orb to ask.'),
           style: const TextStyle(color: Colors.white70),
         ),
-        if (qaCount == 0) ...[
+        if (ingested == 0) ...[
           const SizedBox(height: 12),
           Text(
-            state.t(
-              'संग्रह खाली है — प्रोसेसिंग/कंट्रोल से वीडियो इंजेस्ट करें, वरना उत्तर नहीं मिलेगा।',
-              'The corpus is empty — ingest videos from Control/Processing or questions will be refused.',
-            ),
+            curated > 0
+                ? state.t(
+                    'अभी केवल बीज पुस्तकालय है। अपना प्रवचन जोड़ने के लिए YouTube URL चिपकाएँ।',
+                    'Only the seed library is present. Paste a YouTube URL to add a real discourse.',
+                  )
+                : state.t(
+                    'संग्रह खाली है — अपना पहला प्रवचन जोड़ने के लिए YouTube URL चिपकाएँ।',
+                    'The corpus is empty — paste a YouTube URL to add the first discourse.',
+                  ),
             style: const TextStyle(color: Colors.amber),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _urlController,
+            decoration: InputDecoration(
+              hintText: 'https://www.youtube.com/watch?v=…',
+              suffixIcon: IconButton(
+                onPressed: _ingesting ? null : _ingestUrl,
+                icon: const Icon(Icons.link),
+              ),
+            ),
           ),
         ],
         const SizedBox(height: 12),
@@ -754,8 +795,8 @@ class _ByokKeysCardState extends State<ByokKeysCard> {
         const SizedBox(height: 8),
         Text(
           state.t(
-            'यूट्यूब / जेमिनी / मिस्ट्रल कुंजी चिपकाएँ। सेव के बाद सिस्टम खुद कॉन्फ़िगर हो जाता है।',
-            'Paste YouTube, Gemini, and Mistral keys. Save configures the app without a restart.',
+            'यूट्यूब कुंजी इंजेस्ट के लिए चाहिए। जेमिनी/मिस्ट्रल चैट में इस्तेमाल नहीं होते।',
+            'YouTube key is required for ingest. Gemini/Mistral are unused by Chat/Search.',
           ),
           style: const TextStyle(color: Colors.white70, height: 1.4),
         ),

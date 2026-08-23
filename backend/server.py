@@ -22,7 +22,7 @@ from backend.models import (
     SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
     AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest,
     CompanionQuery, ScrapeRequest, VideoMetaRequest, IngestRequest, ByokKeysPatch,
-    FeedbackRequest,
+    FeedbackRequest, ProcessStartRequest, IngestUrlRequest,
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
@@ -53,6 +53,12 @@ from backend.services.database import bootstrap_database
 from backend.db_schema import SETTINGS_DOC_ID, SECRETS_DOC_ID
 from backend.services.control_auth import authorize_cloud, authorize_control, control_token_required
 from backend.services.query_safety import clamp_limit, escape_regex
+from backend.services.qa_corpus import (
+    classify_youtube_target,
+    qa_candidate_filter,
+    qa_load_plan,
+    summarize_qa_counts,
+)
 from backend.services.byok import (
     apply_env,
     memory_secrets,
@@ -145,17 +151,23 @@ async def health():
     }
 
 @api_router.post("/process/start")
-async def start_processing(_auth: None = Depends(require_control)):
-    """Start processing all videos from the YouTube channel"""
+async def start_processing(
+    body: Optional[ProcessStartRequest] = None,
+    _auth: None = Depends(require_control),
+):
+    """Start processing videos from the default or pasted YouTube channel."""
     settings = await _load_control_settings()
     if not settings.get("processing_enabled"):
         raise HTTPException(status_code=400, detail="Processing is disabled in control settings")
+    payload = body or ProcessStartRequest()
     try:
-        status_id = await processing_service.start_channel_processing()
+        status_id = await processing_service.start_channel_processing(payload.channel_url)
+        logger.info("process_start channel_url=%s status_id=%s", payload.channel_url or "default", status_id)
         return {
             "ok": True,
             "message": "Processing started",
             "status_id": status_id,
+            "channel_url": payload.channel_url,
             "note": "This will process all videos from the channel. Check status using /process/status/{status_id}"
         }
     except Exception as e:
@@ -184,6 +196,27 @@ async def ingest_youtube_library(body: IngestRequest, _auth: None = Depends(requ
         logger.error(f"Error ingesting YouTube library: {error}")
         raise HTTPException(status_code=500, detail=str(error))
 
+
+@api_router.post("/process/from-url")
+async def ingest_from_pasted_url(body: IngestUrlRequest, _auth: None = Depends(require_control)):
+    """Activate the corpus from a pasted YouTube watch or channel URL."""
+    settings = await _load_control_settings()
+    if not settings.get("processing_enabled"):
+        raise HTTPException(status_code=400, detail="Processing is disabled in control settings")
+    target = classify_youtube_target(body.url)
+    if target["kind"] == "invalid":
+        raise HTTPException(status_code=400, detail="Provide a YouTube video or channel URL")
+    try:
+        logger.info("process_from_url kind=%s", target["kind"])
+        if target["kind"] == "video":
+            return await processing_service.ingest_video_list([{"video_id": target["video_id"]}])
+        return await processing_service.ingest_from_channel(target["channel"])
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.error(f"Error ingesting from URL: {error}")
+        raise HTTPException(status_code=500, detail=str(error))
+
 @api_router.get("/process/status/{status_id}")
 async def get_processing_status(status_id: str):
     """Get processing status"""
@@ -210,14 +243,32 @@ def _normalize_qa_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
         "video_title": doc.get("video_title") or doc.get("title") or "",
         "channel_id": channel_id,
         "channel_name": (channel or {}).get("name") or channel_id,
+        "source": doc.get("source") or ("curated_library" if not doc.get("video_id") else "transcript"),
+        "kind": doc.get("kind") or "clip",
     }
 
 
-async def _load_qa_database() -> List[Dict[str, Any]]:
+async def _qa_source_counts() -> Dict[str, Any]:
+    curated = await db.question_answers.count_documents({"source": "curated_library"})
+    total = await db.question_answers.count_documents({})
+    return summarize_qa_counts(curated=curated, ingested=max(0, total - curated))
+
+
+async def _load_qa_database(
+    query: Optional[str] = None,
+    channel_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     try:
-        qa_docs = await db.question_answers.find().to_list(2000)
+        plan = qa_load_plan(query)
+        filt = qa_candidate_filter(query, channel_id) if plan["mode"] == "query" else {}
+        if plan["mode"] == "recent" and channel_id and channel_id not in ("", "all"):
+            filt = {"channel_id": channel_id}
+        qa_docs = await db.question_answers.find(filt).sort("created_at", -1).to_list(plan["cap"])
+        if plan["mode"] == "query" and not qa_docs:
+            qa_docs = await db.question_answers.find({}).sort("created_at", -1).to_list(plan["cap"])
         qa_database = [_normalize_qa_doc(doc) for doc in qa_docs if doc.get("question")]
         if qa_database:
+            logger.info("qa_load mode=%s cap=%s returned=%s", plan["mode"], plan["cap"], len(qa_database))
             return qa_database
         logger.warning("No Q&A documents found in database; using curated library")
     except Exception as error:
@@ -262,7 +313,7 @@ async def search_questions(query: SearchQuery):
             return []
 
         logger.info(f"Processing search query: '{query.query}' with limit: {query.limit}")
-        qa_database = await _load_qa_database()
+        qa_database = await _load_qa_database(query.query, query.channel_id)
         expanded = expand_query(query.query, query.conversation_history)
         relevant_answers = rank_answers(
             expanded,
@@ -304,7 +355,7 @@ async def get_channels():
 async def get_recommendations(body: RecommendationRequest):
     """Personalized question suggestions from recent search history."""
     try:
-        qa_database = await _load_qa_database()
+        qa_database = await _load_qa_database(" ".join(body.recent_queries or []), body.channel_id)
         ranked = recommend_from_history(
             body.recent_queries,
             qa_database,
@@ -333,7 +384,7 @@ async def ask_grounded(body: AskQuery):
                 "expanded_query": "",
                 "top_score": 0,
             }
-        qa_database = await _load_qa_database()
+        qa_database = await _load_qa_database(body.query, body.channel_id)
         result = grounded_ask(
             body.query,
             corpus=qa_database,
@@ -414,13 +465,16 @@ async def control_dashboard():
     try:
         total_videos = await db.videos.count_documents({})
         processed = await db.videos.count_documents({"transcript_processed": True})
-        qa_count = await db.question_answers.count_documents({})
+        qa_counts = await _qa_source_counts()
         pinned_count = await db.pinned_qa.count_documents({})
         stats = {
             "total_videos": total_videos,
             "processed_videos": processed,
             "unprocessed_videos": max(0, total_videos - processed),
-            "total_qa_pairs": qa_count,
+            "total_qa_pairs": qa_counts["total_qa_pairs"],
+            "curated_qa": qa_counts["curated_qa"],
+            "ingested_qa": qa_counts["ingested_qa"],
+            "seed_only": qa_counts["seed_only"],
         }
     except Exception as error:
         logger.warning(f"control dashboard mongo skipped: {error}")
@@ -658,22 +712,29 @@ async def get_stats():
     try:
         video_count = await db.videos.count_documents({})
         processed_videos = await db.videos.count_documents({"transcript_processed": True})
-        qa_count = await db.question_answers.count_documents({})
         transcript_segments = await db.transcript_segments.count_documents({})
+        qa_counts = await _qa_source_counts()
         
         return {
             "total_videos": video_count,
             "processed_videos": processed_videos,
-            "total_qa_pairs": qa_count,
+            "total_qa_pairs": qa_counts["total_qa_pairs"],
+            "curated_qa": qa_counts["curated_qa"],
+            "ingested_qa": qa_counts["ingested_qa"],
+            "seed_only": qa_counts["seed_only"],
             "total_transcript_segments": transcript_segments,
             "processing_progress": f"{processed_videos}/{video_count}" if video_count > 0 else "0/0"
         }
     except Exception as e:
         logger.warning(f"Error getting stats: {str(e)}")
+        empty = summarize_qa_counts(curated=0, ingested=0)
         return {
             "total_videos": 0,
             "processed_videos": 0,
             "total_qa_pairs": 0,
+            "curated_qa": empty["curated_qa"],
+            "ingested_qa": empty["ingested_qa"],
+            "seed_only": empty["seed_only"],
             "total_transcript_segments": 0,
             "processing_progress": "0/0",
             "library": "curated",
@@ -745,7 +806,8 @@ async def get_system_status():
         # Get database stats
         video_count = await db.videos.count_documents({})
         processed_videos = await db.videos.count_documents({"transcript_processed": True})
-        qa_count = await db.question_answers.count_documents({})
+        qa_counts = await _qa_source_counts()
+        qa_count = qa_counts["total_qa_pairs"]
         transcript_segments = await db.transcript_segments.count_documents({})
         
         # Get processing status
@@ -765,6 +827,9 @@ async def get_system_status():
                 "processed_videos": processed_videos,
                 "unprocessed_videos": video_count - processed_videos,
                 "total_qa_pairs": qa_count,
+                "curated_qa": qa_counts["curated_qa"],
+                "ingested_qa": qa_counts["ingested_qa"],
+                "seed_only": qa_counts["seed_only"],
                 "total_transcript_segments": transcript_segments,
                 "processing_progress": f"{processed_videos}/{video_count}",
                 "real_data_only": sample_videos == 0
