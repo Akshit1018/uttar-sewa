@@ -33,6 +33,16 @@ Research performed for this run. Dates relative to 2026-08-23.
 - Mala: [Mantrum](https://mantrum.app/), [JapGuru](https://play.google.com/store/apps/details?hl=en_US&id=com.mantra.japguru) (Feb 2026 update), [Naam Jap](https://karmalive.org/mantra-jap-counter-app), [Japa Counter](https://apps.apple.com/in/app/japa-counter-mantra-tracker/id6757606346). **ADOPT:** reminders + offline-first. **REJECT:** leaderboards (product rule).
 - [GitaGPT + Chroma](https://github.com/aprameyak/GitaGPT): semantic RAG on a closed text. **BACKLOG:** embeddings after evals, not as a rewrite.
 
+## 2026-08-23 forensic pass (hostile benchmarking)
+
+`parallel-cli` and Firecrawl CLI **not installed**. Built-in web search only.
+
+- NotebookLM still wins **time-to-first-citation** via paste-URL + captions ([Android Police](https://www.androidpolice.com/im-using-notebooklm-to-watch-youtube-for-me-and-im-learning-twice-as-much/), [VidNotes](https://vidnotes.app/blog/199-How-to-Use-YouTube-Videos-in-NotebookLM), [XDA](https://www.xda-developers.com/i-dont-watch-youtube-videos-anymore-i-consume-them-using-notebooklm/)). **ADOPT:** paste-URL ingest. **REJECT:** generative answer as the video sentence.
+- Mala: [Mantrum](https://mantrum.app/) reminders + haptics; [JapGuru](https://japguru.in/) offline + social (reject social). **ADOPT:** reminders/haptics. **REJECT:** leaderboards.
+- OSS timestamp RAG: [justinduplain/youtube-transcript-rag](https://github.com/justinduplain/youtube-transcript-rag), [shreyas-kapse/youtube_bot](https://github.com/shreyas-kapse/youtube_bot), [VidNavigator grounding note](https://vidnavigator.com/en/blog/rag-for-video-transcripts). **ADOPT:** retrieve segments, not 80-char “questions”; eval citations. **REJECT:** swapping extractive refuse for free-form LLM.
+
+New code facts (not from the web): `/process/start` drops `channel_url`; seed hides empty banner; `to_list(2000)`.
+
 ## Job-search / recruiting templates
 
 **REJECT:** This repository is a spiritual Q&A + mala product. Candidate-profile graphs do not apply.

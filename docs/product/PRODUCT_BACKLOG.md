@@ -25,7 +25,15 @@ Statuses: DISCOVERED | VALIDATING | PLANNED | IN_PROGRESS | TESTING | BLOCKED | 
 | P3-VECTOR | Unused `embedding` field | P3 | DISCOVERED | Hybrid search only after extractive eval |
 | P4-ADS | Ads / streaks / leaderboards | P4 | REJECTED | Conflicts with sadhana product |
 
-Adversarial inspection (2026-08-23): see [`RED_TEAM_FINDINGS.md`](RED_TEAM_FINDINGS.md). Do not treat this backlog as complete.
+Adversarial inspection (2026-08-23): see [`RED_TEAM_FINDINGS.md`](RED_TEAM_FINDINGS.md). Forensic extension: [`FORENSIC_INDEX.md`](FORENSIC_INDEX.md). Do not treat this backlog as complete.
+
+| ID | Problem | Severity | Status | Validation |
+|---|---|---|---|---|
+| F-NEW-01 | PWA custom channel URL ignored by `/process/start` | P0 | DISCOVERED | Handler takes no body |
+| F-NEW-02 | Seeded 30 pairs hide empty-corpus banner | P0 | DISCOVERED | Banner uses count, not source |
+| F-NEW-03 | Q&A questions are caption `[:80]` | P1 | DISCOVERED | `segments_to_qa` |
+| F-NEW-04 | Ask/search RAM-load 2000 docs | P1 | DISCOVERED | `_load_qa_database` |
+| F-NEW-07 | BYOK Gemini/Mistral unused by ask | P2 | DISCOVERED | No call sites |
 
 ## Completeness (honest)
 

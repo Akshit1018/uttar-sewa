@@ -25,7 +25,7 @@ States: MISSING / WEAK / PARTIAL / COMPARABLE / BETTER.
 
 1. **NotebookLM pitch:** “Paste the satsang URL. Don’t run Mongo or Whisper.” Time-to-value minutes, not an operator dashboard.  
 2. **Mala app pitch:** “Offline, reminders, haptics. We don’t make you configure FastAPI.”  
-3. **Exploit our bugs:** dead phone install, 900+ lie, Chat vs Search, fake settings, open admin API.
+3. **Exploit our bugs:** dead phone install until Settings, custom-channel no-op, curated seed as “success,” Chat vs Search, demo-open control writes, 2000-row RAM cap.
 
 ## Open-source we rebuilt worse
 

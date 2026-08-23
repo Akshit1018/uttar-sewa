@@ -1,5 +1,7 @@
 # Red-team findings (master)
 
+Forensic extension (reconstruct-first): [`FORENSIC_INDEX.md`](FORENSIC_INDEX.md).
+
 **Date:** 2026-08-23  
 **Product:** Uttar Sewa — spiritual Q&A + japa. Not recruiting.  
 **Method:** Code inspection + cited web research. Flutter/PWA **not** executed on a device.  
