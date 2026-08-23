@@ -13,17 +13,33 @@ _TOPIC_CHANNEL = {
 }
 
 
-async def ensure_indexes(db) -> None:
+async def ensure_indexes(db) -> dict:
+    created = []
+    failed = []
     for collection_name, specs in INDEXES.items():
         collection = db[collection_name]
         for spec in specs:
             keys = spec["keys"] if isinstance(spec, dict) else spec
             unique = bool(spec.get("unique")) if isinstance(spec, dict) else False
-            name = "_".join(f"{field}_{direction}" for field, direction in keys)
+            name = spec.get("name") if isinstance(spec, dict) else None
+            if not name:
+                name = "_".join(f"{field}_{direction}" for field, direction in keys)
             try:
-                await collection.create_index(keys, name=name, unique=unique, background=True)
-            except Exception:
-                await collection.create_index(keys, name=name, background=True)
+                kwargs = {"name": name, "background": True}
+                if unique:
+                    kwargs["unique"] = True
+                await collection.create_index(keys, **kwargs)
+                created.append(name)
+            except Exception as error:
+                if unique:
+                    failed.append({"name": name, "error": str(error)})
+                    continue
+                try:
+                    await collection.create_index(keys, name=name, background=True)
+                    created.append(name)
+                except Exception as inner:
+                    failed.append({"name": name, "error": str(inner)})
+    return {"created": created, "failed": failed}
 
 
 async def seed_if_empty(db) -> dict:

@@ -5,7 +5,8 @@ import os
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Depends, Header
+import asyncio
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Depends, Header, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -22,7 +23,7 @@ from backend.models import (
     SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
     AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest,
     CompanionQuery, ScrapeRequest, VideoMetaRequest, IngestRequest, ByokKeysPatch,
-    FeedbackRequest, ProcessStartRequest, IngestUrlRequest,
+    FeedbackRequest, ProcessStartRequest, IngestUrlRequest, UnpinQaRequest,
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
@@ -59,6 +60,8 @@ from backend.services.qa_corpus import (
     qa_load_plan,
     summarize_qa_counts,
 )
+from backend.services.rate_limit import LIMITER
+from backend.services.job_resume import jobs_to_resume
 from backend.services.byok import (
     apply_env,
     memory_secrets,
@@ -108,9 +111,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def require_control(x_control_token: Optional[str] = Header(default=None)):
-    if not authorize_control(x_control_token):
+async def require_control(
+    request: Request,
+    x_control_token: Optional[str] = Header(default=None),
+):
+    peer = request.client.host if request.client else ""
+    if not authorize_control(x_control_token, peer=peer):
         raise HTTPException(status_code=401, detail="control token required")
+
+
+def enforce_rate(request: Request, bucket: str, default_limit: int = 60) -> None:
+    peer = request.client.host if request.client else "unknown"
+    raw = os.environ.get(f"RATE_LIMIT_{bucket.upper()}", str(default_limit))
+    try:
+        limit = int(raw)
+    except (TypeError, ValueError):
+        limit = default_limit
+    if not LIMITER.allow(f"{bucket}:{peer}", limit=limit, window_s=60):
+        raise HTTPException(status_code=429, detail="Too many requests")
 
 
 async def require_cloud(x_control_token: Optional[str] = Header(default=None)):
@@ -263,7 +281,16 @@ async def _load_qa_database(
         filt = qa_candidate_filter(query, channel_id) if plan["mode"] == "query" else {}
         if plan["mode"] == "recent" and channel_id and channel_id not in ("", "all"):
             filt = {"channel_id": channel_id}
-        qa_docs = await db.question_answers.find(filt).sort("created_at", -1).to_list(plan["cap"])
+        qa_docs = []
+        if plan["mode"] == "query" and (query or "").strip():
+            try:
+                qa_docs = await db.question_answers.find(
+                    {"$text": {"$search": (query or "")[:80]}}
+                ).to_list(plan["cap"])
+            except Exception:
+                qa_docs = []
+        if not qa_docs:
+            qa_docs = await db.question_answers.find(filt).sort("created_at", -1).to_list(plan["cap"])
         if plan["mode"] == "query" and not qa_docs:
             qa_docs = await db.question_answers.find({}).sort("created_at", -1).to_list(plan["cap"])
         qa_database = [_normalize_qa_doc(doc) for doc in qa_docs if doc.get("question")]
@@ -306,8 +333,9 @@ def _to_search_result(answer: Dict[str, Any], video: Optional[Dict[str, Any]], r
 
 
 @api_router.post("/search", response_model=List[SearchResult])
-async def search_questions(query: SearchQuery):
+async def search_questions(query: SearchQuery, request: Request):
     """Search Q&A with conversation memory, channel filters, and lexical ranking."""
+    enforce_rate(request, "search")
     try:
         if not (query.query or "").strip():
             return []
@@ -372,8 +400,9 @@ async def get_recommendations(body: RecommendationRequest):
 
 
 @api_router.post("/ask")
-async def ask_grounded(body: AskQuery):
+async def ask_grounded(body: AskQuery, request: Request):
     """Answer only from the video/Q&A corpus, with citations. Refuses if evidence is weak."""
+    enforce_rate(request, "ask")
     try:
         if not (body.query or "").strip():
             language = body.language or "hi"
@@ -554,7 +583,8 @@ async def put_control_keys(body: ByokKeysPatch, _auth: None = Depends(require_co
 
 
 @api_router.post("/control/qa/pin")
-async def pin_qa(body: PinQaRequest, _auth: None = Depends(require_control)):
+async def pin_qa(body: PinQaRequest, request: Request):
+    enforce_rate(request, "pin", default_limit=120)
     doc = pin_document(body.model_dump())
     try:
         await db.pinned_qa.replace_one(
@@ -570,6 +600,23 @@ async def pin_qa(body: PinQaRequest, _auth: None = Depends(require_control)):
     except Exception as error:
         logger.warning(f"pin persist skipped: {error}")
     return doc
+
+
+@api_router.post("/control/qa/unpin")
+async def unpin_qa(body: UnpinQaRequest, request: Request):
+    enforce_rate(request, "pin", default_limit=120)
+    video_id = body.video_id or ""
+    question = body.question or ""
+    try:
+        await db.pinned_qa.delete_one({"video_id": video_id, "question": question})
+        if video_id:
+            await db.question_answers.update_many(
+                {"video_id": video_id, "question": question},
+                {"$set": {"pinned": False}},
+            )
+    except Exception as error:
+        logger.warning(f"unpin persist skipped: {error}")
+    return {"ok": True, "video_id": video_id, "question": question}
 
 
 @api_router.get("/control/qa/pinned")
@@ -974,8 +1021,9 @@ async def get_search_suggestions(query: str = "", limit: int = 5):
         return {"suggestions": [], "query": query, "count": 0}
 
 @api_router.post("/feedback")
-async def submit_feedback(feedback_data: FeedbackRequest):
+async def submit_feedback(feedback_data: FeedbackRequest, request: Request):
     """Submit user feedback"""
+    enforce_rate(request, "feedback", default_limit=20)
     try:
         feedback_entry = {
             "id": str(uuid.uuid4()),
@@ -1230,6 +1278,20 @@ async def startup_database():
         stored = await _load_secrets()
         apply_env(resolve_all(stored))
         _reconfigure_services()
+        try:
+            rows = await db.processing_status.find(
+                {"status": {"$in": ["pending", "processing"]}}
+            ).to_list(20)
+            for job in jobs_to_resume(rows):
+                logger.info("resume_processing id=%s", job.get("id"))
+                asyncio.create_task(
+                    processing_service._process_channel_videos_incremental(
+                        job["id"],
+                        job.get("channel_url"),
+                    )
+                )
+        except Exception as resume_error:
+            logger.warning(f"processing resume skipped: {resume_error}")
     except Exception as error:
         logger.warning(f"database bootstrap skipped: {error}")
 

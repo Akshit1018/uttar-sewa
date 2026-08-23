@@ -10,18 +10,18 @@ Statuses: DISCOVERED | VALIDATING | PLANNED | IN_PROGRESS | TESTING | BLOCKED | 
 | P0-DEDUP | Re-ingest duplicated segments/Q&A | P0 | DONE | `test_reingest_replaces_existing_segments_and_qa` |
 | P0-CORPUS | Gemini Q&A could enter grounded corpus | P0 | DONE | `test_gemini_paraphrase_is_not_stored_as_grounded_corpus` |
 | P0-TOKEN | Unauthenticated PUT keys | P0 | DONE | Optional `CONTROL_TOKEN`; Flutter Settings field |
-| P1-PWA-BYOK | PWA has no BYOK / control-token UI | P1 | PARTIAL | Settings token + API display; keys still Flutter Control |
+| P1-PWA-BYOK | PWA has no BYOK / control-token UI | P1 | DONE | Settings token + API URL + `/control/keys` paste |
 | P1-SEARCH-EMPTY | Flutter Search has no empty-results UI | P1 | DONE | Empty-state copy after a search |
 | P1-API-BASE | Flutter default `127.0.0.1` fails on a phone | P1 | DONE | Settings API URL persisted; banner always visible |
-| P1-KEYS-AT-REST | BYOK cleartext in Mongo | P1 | DISCOVERED | Encrypt or OS keystore |
-| P1-PIN-SPLIT | Server pin vs local heart favorites | P1 | DISCOVERED | Pin upserts; hearts still local — not unified |
+| P1-KEYS-AT-REST | BYOK cleartext in Mongo | P1 | DONE | Sealed `enc_v1` envelope; default key is local-dev |
+| P1-PIN-SPLIT | Server pin vs local heart favorites | P1 | DONE | PWA pin/unpin + local offline cache |
 | P1-LIVE-TOGGLE | Live Activity / Watch buttons do not toggle off | P1 | DONE | Symmetric stop + native methods |
 | P0-CLOUD | Cloud restore/backup ungated | P0 | DONE | `authorize_cloud` fail-closed |
 | P0-COPY | 900+ / AI understands / empty Chat | P0 | DONE | Honest copy + Chat banner |
 | P0-INGEST | Delete-then-insert hole | P0 | DONE | Upsert then drop stale |
 | P2-SEMANTICS | Flutter: zero `Semantics` | P2 | PARTIAL | Orb + nav tooltips labeled |
 | P2-EVAL | No regression set for refuse / faithfulness | P2 | PARTIAL | `tests/test_ask_eval.py` fixture |
-| P2-PWA-MALA | PWA mala never calls `/mala/sync` | P2 | DISCOVERED | Optional sync, local remains source |
+| P2-PWA-MALA | PWA mala never calls `/mala/sync` | P2 | DONE | `useMala` best-effort sync; local remains source |
 | P3-VECTOR | Unused `embedding` field | P3 | DISCOVERED | Hybrid search only after extractive eval |
 | P4-ADS | Ads / streaks / leaderboards | P4 | REJECTED | Conflicts with sadhana product |
 
@@ -42,9 +42,9 @@ Adversarial inspection (2026-08-23): see [`RED_TEAM_FINDINGS.md`](RED_TEAM_FINDI
 | Landing / PWA chat | FUNCTIONAL — now `/ask` |
 | Flutter chat | FUNCTIONAL |
 | Japa Flutter | FUNCTIONAL — local-first, sync best-effort |
-| Japa PWA | PARTIAL — localStorage only |
-| Ingest | FUNCTIONAL — extractive + replace |
-| BYOK | FUNCTIONAL — Flutter; PWA missing |
+| Japa PWA | FUNCTIONAL — local first, `/mala/sync` best-effort |
+| Ingest | FUNCTIONAL — extractive + replace; startup resume |
+| BYOK | FUNCTIONAL — Flutter + PWA Settings; sealed at rest |
 | Overlay / Watch | PARTIAL — channels present; no device proof here |
 | Auth | PARTIAL — optional control token only |
 | Multi-tenant SaaS | NOT_STARTED — not the current product |

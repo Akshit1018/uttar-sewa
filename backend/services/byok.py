@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
+from backend.services.secret_seal import seal_secret, secrets_key, unseal_secret
+
 CLEAR_TOKEN = "__clear__"
 
 PROVIDERS: List[Dict[str, Any]] = [
@@ -175,19 +177,28 @@ def public_keys_payload(
     }
 
 
-def secrets_document(values: Mapping[str, str]) -> Dict[str, Any]:
-    doc = {"_id": "byok"}
-    for key, value in values.items():
-        if key in PROVIDER_IDS and str(value or "").strip():
-            doc[key] = str(value)
+def secrets_document(values: Mapping[str, str], key: Optional[str] = None) -> Dict[str, Any]:
+    material = key if key is not None else secrets_key()
+    doc: Dict[str, Any] = {"_id": "byok", "sealed": True}
+    for provider_id, value in values.items():
+        if provider_id in PROVIDER_IDS and str(value or "").strip():
+            doc[provider_id] = seal_secret(str(value), material)
     return doc
 
 
-def secrets_from_document(doc: Optional[Mapping[str, Any]]) -> Dict[str, str]:
+def secrets_from_document(doc: Optional[Mapping[str, Any]], key: Optional[str] = None) -> Dict[str, str]:
     if not doc:
         return {}
-    return {
-        key: str(value)
-        for key, value in doc.items()
-        if key in PROVIDER_IDS and str(value or "").strip()
-    }
+    material = key if key is not None else secrets_key()
+    out: Dict[str, str] = {}
+    for provider_id, value in doc.items():
+        if provider_id not in PROVIDER_IDS:
+            continue
+        text = str(value or "").strip()
+        if not text:
+            continue
+        try:
+            out[provider_id] = unseal_secret(text, material)
+        except Exception:
+            out[provider_id] = text
+    return out

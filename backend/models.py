@@ -125,6 +125,11 @@ class PinQaRequest(BaseModel):
     channel_id: Optional[str] = None
 
 
+class UnpinQaRequest(BaseModel):
+    video_id: Optional[str] = ""
+    question: str = ""
+
+
 class MalaSyncRequest(BaseModel):
     device_id: str
     day: str

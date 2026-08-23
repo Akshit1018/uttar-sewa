@@ -18,16 +18,16 @@ Legend: REAL | PARTIAL | COSMETIC | MOCKED | BROKEN | HIDDEN | DEAD | DUPLICATE 
 | Curated library fallback | **REAL** and **MISLEADING** | `_load_qa_database` → `library_as_qa()` | App “works” with 30 generic pairs that are not the seeker’s guru. Citations look like answers. |
 | Empty-corpus Chat honesty | **REAL** (count source) | Banner when `ingested_qa == 0`; paste-URL ingest | Seed library no longer hides the empty-ingest state. Curated answers are labeled. |
 | Japa mala (count beads) | **REAL** locally | `mala_counter.py` / `lib/mala.js` / `MalaState.applyTap` | Beads increment offline. |
-| Japa synced across devices | **PARTIAL** | Flutter `/mala/sync`; PWA never calls it | Two clients, two malas. README still says daily counts sync. |
+| Japa synced across devices | **PARTIAL** | Flutter + PWA `/mala/sync`; local remains source | Same API; still two device ids unless the operator matches them. |
 | Hold orb to ask | **REAL** (wired) | Flutter focus Chat; PWA `JapaChatSheet` | **UNVERIFIED** hold timing on real phones. |
 | Live Activity / Watch | **PARTIAL** | Start/stop methods exist; Android returns `false`; iOS stubs | Buttons toggle state in Dart. Device proof **UNVERIFIED**. Overlay permission flow **UNVERIFIED**. |
 | Volume-key bead | **PARTIAL** | Android `onKeyDown` → `volumeTap` | Eats volume keys while the Activity is focused. iOS: no equivalent. |
-| BYOK | **PARTIAL** | Flutter UI + Mongo `control_secrets` cleartext | YouTube key is required for ingest. Gemini/Mistral are labeled unused by Chat/Search. |
+| BYOK | **PARTIAL** | Flutter + PWA Settings; sealed at rest | YouTube key is required for ingest. Gemini/Mistral unused by Chat/Search. Default seal key is local-dev. |
 | Control token | **PARTIAL** | Optional; demo-open writes | Cloud routes fail-closed. Keys/ingest open on a LAN demo. |
 | Cloud backup/restore | **HIDDEN** | API + Firestore service; no client UI | Operator can wipe Mongo via curl if token+creds exist. Seeker never sees it. |
 | Public companions (Gita/Wiki) | **PARTIAL** | Flutter + PWA `include_companions`; labeled separately | Companions never enter the video answer string. |
-| Favorites ♥ | **REAL** (local) | PWA `useFavorites` | Lost on clear / new browser. Not on Flutter. |
-| Server pins | **REAL** (API) | Flutter pin | Not on PWA. Requires control auth when token set. |
+| Favorites ♥ | **REAL** (local + server) | PWA `useFavorites` → `/control/qa/pin` | Offline cache remains. Same pin store as Flutter. |
+| Server pins | **REAL** (API) | Flutter pin + PWA heart | Seeker action; not locked behind control token. |
 | Recommendations | **PARTIAL** | `recommend_from_history` over same 2000-row bag | Recycles corpus questions. Not personalized beyond recent query strings. |
 | Voice search | **PARTIAL** | PWA Web Speech | Flutter: none. iOS Safari **UNVERIFIED**. |
 | Offline search | **PARTIAL** | PWA Search cache | Chat offline is honest (throws). Cache can be stale. |

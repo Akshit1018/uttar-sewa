@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { applyTap, applyUndo, emptyMalaState } from '../lib/mala';
 import { readPractice } from '../lib/practice';
 import { notificationService } from '../services/notificationService';
+import { API } from '../lib/backend';
 
 const dayStamp = () => {
   const now = new Date();
@@ -40,6 +41,37 @@ const writeState = (mantraId, state) => {
   }
 };
 
+const deviceId = () => {
+  try {
+    let id = localStorage.getItem('uttar_sewa_device_id');
+    if (!id) {
+      id = `pwa-${Date.now()}`;
+      localStorage.setItem('uttar_sewa_device_id', id);
+    }
+    return id;
+  } catch (error) {
+    return 'pwa-anonymous';
+  }
+};
+
+const syncMala = (state) => {
+  fetch(`${API}/mala/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      device_id: deviceId(),
+      day: dayStamp(),
+      mantra_id: state.mantra_id || 'ram',
+      beads_today: state.beads_today || 0,
+      cycles_today: state.cycles_today || 0,
+      current_in_cycle: state.current_in_cycle || 0,
+      questions_today: state.questions_today || 0,
+      beads_per_cycle: state.beads_per_cycle || 108,
+      completed_cycle: !!state.completed_cycle,
+    }),
+  }).catch(() => null);
+};
+
 export const useMala = (language = 'hi') => {
   const [practice, setPractice] = useState(readPractice);
   const [state, setState] = useState(() => readState(practice.mantraId, practice.beadsPerCycle));
@@ -64,6 +96,7 @@ export const useMala = (language = 'hi') => {
   const commit = useCallback((next) => {
     writeState(next.mantra_id || practice.mantraId, next);
     setState(next);
+    syncMala(next);
     return next;
   }, [practice.mantraId]);
 

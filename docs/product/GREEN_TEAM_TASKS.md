@@ -84,15 +84,26 @@ Classification of Red Team claims used: VERIFIED / PARTIALLY VERIFIED / FALSE PO
 | User accounts | **REJECTED** — single-operator product |
 | Vector/hybrid search | **BACKLOG** — repeats ultra-search without evals |
 | Leaderboards / punya / ads | **REJECTED** |
-| Encrypt keys at rest | **BACKLOG** (P1-KEYS-AT-REST) |
-| Unify pin vs heart | **BACKLOG** (P1-PIN-SPLIT) |
-| Durable ingest queue | **BACKLOG** (F-NEW-12) |
+| Encrypt keys at rest | **IMPLEMENTED** — sealed envelope (`enc_v1`) keyed by `SECRETS_KEY`/`CONTROL_TOKEN` |
+| Unify pin vs heart | **IMPLEMENTED** — PWA hearts call `/control/qa/pin` + `/unpin`; local cache offline |
+| Durable ingest queue | **PARTIAL** — persist `channel_url` and resume pending/processing on startup. Still in-process. |
 
-## Critic leftovers (not closed)
+## Closeout (this session)
 
-- In-process ingest still dies with the worker
-- Unique index create can still swallow uniqueness
-- Keys remain cleartext
-- Two clients still split favorites
-- Regex candidate filter is not a text index
-- Browser and Flutter device journeys **UNVERIFIED**
+| ID | Status |
+|---|---|
+| TASK-G008 secrets at rest | **IMPLEMENTED** / **TESTED** — not AES-GCM; stdlib sealed envelope |
+| TASK-G009 pin/heart unify | **IMPLEMENTED** / **TESTED** — pin is a seeker action |
+| TASK-G010 unique indexes | **IMPLEMENTED** / **TESTED** — unique failure is not downgraded |
+| TASK-G011 text index | **IMPLEMENTED** — schema + `$text` then regex fallback |
+| TASK-G012 rate limits | **IMPLEMENTED** / **TESTED** — in-process sliding window |
+| TASK-G013 job resume | **IMPLEMENTED** / **TESTED** — startup replay |
+| TASK-G014 PWA BYOK + mala sync | **IMPLEMENTED** — Settings `/control/keys`; `useMala` posts `/mala/sync` |
+| TASK-G015 remote control lock | **IMPLEMENTED** / **TESTED** — token unset only loopback is demo-open |
+
+## Still blocked (cannot claim 100%)
+
+- Flutter/PWA on a real device: **UNVERIFIED**
+- Live YouTube ingest: **EXTERNAL_DEPENDENCY_REQUIRED**
+- Overlay / Watch / Live Activity hardware: **UNVERIFIED**
+- Vector search / accounts / ads: **REJECTED**

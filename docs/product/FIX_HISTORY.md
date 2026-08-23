@@ -109,3 +109,11 @@
 **Fix:** `ProcessStartRequest` + `/process/from-url`; `curated_qa`/`ingested_qa`/`seed_only`; timestamped clip titles; query-scoped load (cap 400); Chat paste-URL; PWA persisted API URL; Flutter orb double-tap undo; Gemini marked unused.
 
 **Regression:** `tests/test_green_team_corpus.py` (116 pytest total).
+
+## Green Team closeout (2026-08-23)
+
+**Symptom:** leftovers — cleartext keys, pin/heart split, unique indexes swallowed, no rate limit, ingest died with the worker, PWA no BYOK/mala sync.
+
+**Fix:** sealed `enc_v1` secrets; pin as seeker API + PWA sync; unique index failures stay unique; `$text` then regex; sliding-window rate limits; persist `channel_url` and resume pending jobs; PWA Settings keys + mala sync; control writes fail-closed off loopback when token unset.
+
+**Regression:** `tests/test_green_team_closeout.py`.

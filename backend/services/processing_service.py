@@ -166,8 +166,9 @@ class ProcessingService:
                 current_video_title="Initializing..."
             )
             
-            # Insert status into database
-            await self.db.processing_status.insert_one(status.dict())
+            payload = status.dict()
+            payload["channel_url"] = channel_url
+            await self.db.processing_status.insert_one(payload)
             status_id = status.id
             
             # Start processing in background

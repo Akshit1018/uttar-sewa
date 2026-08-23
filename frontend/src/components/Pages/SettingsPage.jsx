@@ -8,7 +8,7 @@ import PageShell from '../Layout/PageShell';
 import { readSettings, writeSettings } from '../../lib/practice';
 import { notificationService } from '../../services/notificationService';
 import { API, BACKEND_URL, readStoredBackendUrl, writeStoredBackendUrl } from '../../lib/backend';
-import { readControlToken, writeControlToken } from '../../lib/control';
+import { controlHeaders, readControlToken, writeControlToken } from '../../lib/control';
 
 const SettingsPage = ({ language, setLanguage }) => {
   const [prefs, setPrefs] = useState(readSettings);
@@ -16,6 +16,10 @@ const SettingsPage = ({ language, setLanguage }) => {
   const [installEvent, setInstallEvent] = useState(null);
   const [controlToken, setControlToken] = useState(readControlToken);
   const [backendUrl, setBackendUrl] = useState(() => readStoredBackendUrl() || BACKEND_URL);
+  const [keyFields, setKeyFields] = useState({});
+  const [keyStatus, setKeyStatus] = useState('');
+  const [providers, setProviders] = useState([]);
+  const [savingKeys, setSavingKeys] = useState(false);
 
   useEffect(() => {
     setPrefs(readSettings());
@@ -25,6 +29,14 @@ const SettingsPage = ({ language, setLanguage }) => {
       setCanInstall(true);
     };
     window.addEventListener('beforeinstallprompt', onPrompt);
+    fetch(`${API}/control/keys`, { headers: controlHeaders() })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.providers)) {
+          setProviders(data.providers);
+        }
+      })
+      .catch(() => {});
     return () => window.removeEventListener('beforeinstallprompt', onPrompt);
   }, []);
 
@@ -202,6 +214,71 @@ const SettingsPage = ({ language, setLanguage }) => {
             );
           })}
         </div>
+
+        <Card className="bg-white/5 border border-white/10 rounded-2xl mb-8">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">
+              {language === 'hi' ? 'अपनी कुंजी' : 'Bring your keys'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-gray-400">
+              {language === 'hi'
+                ? 'यूट्यूब कुंजी इंजेस्ट के लिए चाहिए। जेमिनी/मिस्ट्रल चैट में इस्तेमाल नहीं होते।'
+                : 'YouTube key is required for ingest. Gemini/Mistral are unused by Chat/Search.'}
+            </p>
+            {keyStatus ? <p className="text-xs text-amber-200">{keyStatus}</p> : null}
+            {(providers.length ? providers : [{ id: 'youtube', label: 'YouTube Data API', required: true }]).map((item) => (
+              <div key={item.id}>
+                <label className="text-xs text-gray-300" htmlFor={`byok-${item.id}`}>
+                  {language === 'hi' ? (item.label_hi || item.label) : item.label}
+                  {item.required ? ' *' : ''}
+                </label>
+                <Input
+                  id={`byok-${item.id}`}
+                  type="password"
+                  value={keyFields[item.id] || ''}
+                  onChange={(event) => setKeyFields((current) => ({ ...current, [item.id]: event.target.value }))}
+                  className="bg-white/5 border-white/20 text-white mt-1"
+                  placeholder={item.configured ? '••••••••' : (language === 'hi' ? 'कुंजी चिपकाएँ' : 'Paste API key')}
+                />
+              </div>
+            ))}
+            <Button
+              disabled={savingKeys}
+              className="bg-white text-black hover:bg-gray-100"
+              onClick={async () => {
+                setSavingKeys(true);
+                try {
+                  const patch = {};
+                  Object.entries(keyFields).forEach(([id, value]) => {
+                    if (String(value || '').trim()) {
+                      patch[id] = String(value).trim();
+                    }
+                  });
+                  const response = await fetch(`${API}/control/keys`, {
+                    method: 'PUT',
+                    headers: controlHeaders(),
+                    body: JSON.stringify(patch),
+                  });
+                  const data = await response.json().catch(() => ({}));
+                  if (!response.ok) {
+                    throw new Error(data.detail || 'Save failed');
+                  }
+                  setProviders(data.providers || providers);
+                  setKeyFields({});
+                  setKeyStatus(language === 'hi' ? 'सेव हो गया' : 'Saved');
+                } catch (error) {
+                  setKeyStatus(error.message || (language === 'hi' ? 'सेव नहीं हुआ' : 'Save failed'));
+                } finally {
+                  setSavingKeys(false);
+                }
+              }}
+            >
+              {language === 'hi' ? 'सेव कर चलाएँ' : 'Save and run'}
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card className="bg-white/5 backdrop-blur-xl border border-red-500/20 rounded-2xl">
           <CardHeader>

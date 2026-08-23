@@ -10,15 +10,12 @@
 
 ## Product gaps still open
 
-- PWA Settings has control-token + persisted API URL; YouTube/Gemini key paste is still Flutter Control
-- Flutter Search empty-results / error recovery is thin
-- Default Flutter API base `http://127.0.0.1:8000/api` is wrong on a physical device until Settings is saved
+- Flutter Search empty-results / error recovery is still thin
+- Default Flutter API base is wrong on a physical device until Settings is saved
 - Two admin UIs (Flutter Control vs React Admin) can drift
-- `ultra_video_service` appears unused
-- `feedback` collection is not in `db_schema`
-- Keys stored cleartext in Mongo
-- `POST /process/from-url` and `/process/start` still run in-process (die with the worker)
-- Pin (Flutter) vs heart (PWA) favorites remain split
+- `ultra_video_service` remains unused (not imported)
+- Ingest is still in-process (startup resumes pending jobs; no Redis/queue)
+- Secret seal uses stdlib PBKDF2+HMAC, not a hardware keystore
 - Flutter/PWA on a real device: UNVERIFIED in this environment
 
 ## Do not “fix” by rewriting

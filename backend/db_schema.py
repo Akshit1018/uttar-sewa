@@ -29,6 +29,10 @@ INDEXES = {
         {"keys": [("channel_id", 1)]},
         {"keys": [("language", 1)]},
         {"keys": [("pinned", 1)]},
+        {
+            "keys": [("question", "text"), ("answer", "text"), ("video_title", "text")],
+            "name": "qa_text",
+        },
     ],
     "pinned_qa": [
         {"keys": [("video_id", 1), ("question", 1)], "unique": True},

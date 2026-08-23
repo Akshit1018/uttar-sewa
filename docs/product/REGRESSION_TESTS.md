@@ -2,6 +2,8 @@
 
 Fresh command used: `python3 -m pytest tests/ -q`
 
+Closeout: `tests/test_green_team_closeout.py` (secrets, unique indexes, remote control lock, rate limit, job resume, pin/unpin, PWA wiring).
+
 | Area | Test |
 |---|---|
 | Channel URL on start | `test_process_start_forwards_channel_url` |
