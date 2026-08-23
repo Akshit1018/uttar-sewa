@@ -53,10 +53,14 @@ void main() {
     expect(await native.startLiveActivity(beads: 1, cycle: 27), isTrue);
     expect(await native.startWatchSession(), isTrue);
     await native.updateLiveActivity(beads: 2, cycle: 27);
+    await native.stopLiveActivity();
+    await native.stopWatchSession();
     expect(log.map((call) => call.method), [
       'startLiveActivity',
       'startWatchSession',
       'updateLiveActivity',
+      'stopLiveActivity',
+      'stopWatchSession',
     ]);
   });
 

@@ -19,4 +19,4 @@ Android emulator: `http://10.0.2.2:8000/api`.
 2. **Search** — `/api/search` with channel filter
 3. **Sadhana** — mala counts + named mantra
 4. **Control** — dashboard against Mongo `uttar_sewa`
-5. **Settings** — language + API/database status
+5. **Settings** — language, **editable API URL** (required on a real phone), control token, BYOK

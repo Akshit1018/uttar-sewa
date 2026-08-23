@@ -9,8 +9,8 @@ import { useToast } from '../hooks/use-toast';
 import { t } from '../utils/translations';
 import PageShell from './Layout/PageShell';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
+import { controlHeaders } from '../lib/control';
 
 const ProcessingStatus = ({ language }) => {
   const [processingStatus, setProcessingStatus] = useState(null);
@@ -61,9 +61,7 @@ const ProcessingStatus = ({ language }) => {
 
       const response = await fetch(`${API}/process/start`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: controlHeaders(),
         body: JSON.stringify(requestBody)
       });
 
@@ -100,7 +98,8 @@ const ProcessingStatus = ({ language }) => {
   const clearProcessingStatus = async () => {
     try {
       const response = await fetch(`${API}/process/clear`, {
-        method: 'POST'
+        method: 'POST',
+        headers: controlHeaders(),
       });
       
       if (response.ok) {

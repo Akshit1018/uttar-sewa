@@ -96,7 +96,13 @@ class _JapaOrbState extends State<JapaOrb> {
     return Positioned(
       right: 16,
       bottom: 24,
-      child: GestureDetector(
+      child: Semantics(
+        button: true,
+        label: widget.state.t(
+          'जप माला ${mala.currentInCycle} में ${mala.beadsPerCycle}। टैप मनका, देर दबाएँ प्रश्न।',
+          'Japa mala ${mala.currentInCycle} of ${mala.beadsPerCycle}. Tap for a bead, hold to ask.',
+        ),
+        child: GestureDetector(
         onTapDown: _down,
         onTapUp: _up,
         onTapCancel: _cancel,
@@ -118,6 +124,7 @@ class _JapaOrbState extends State<JapaOrb> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

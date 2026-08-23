@@ -81,6 +81,36 @@ Phone/PWA misconfig → no API. API up, Mongo down → curated 30 pairs presente
 **P2:** Reminders (not leaderboards); haptics; real analytics; PWA BYOK or remove Admin; delete dead ultra_* ; semantic search after evals.  
 **P3:** Desktop polish, scrape placeholder, conversation export.
 
+## Repair status (2026-08-23 green pass)
+
+| Finding | Status |
+|---|---|
+| UX-01 Flutter loopback | RESOLVED — editable persisted API URL + always-visible error |
+| UX-02 PWA `undefined/api` | RESOLVED — origin fallback; `.env.example` set |
+| SEC-01 cloud restore/backup | RESOLVED — fail-closed even if token unset |
+| SEC-02 demo-open writes | PARTIALLY RESOLVED — control writes still demo-open; cloud locked |
+| UX-04 empty Chat | RESOLVED — PWA + Flutter banners |
+| UX-05 900+/AI copy | RESOLVED — About + translations rewritten |
+| UX-06 fake toggles | RESOLVED — removed |
+| UX-07 clear confirm | RESOLVED — Settings + Favorites |
+| UX-08 channel split | RESOLVED — Flutter ask + PWA orb send `channel_id` |
+| UX-09 hold orb focus | RESOLVED — switches to Chat and focuses field |
+| UX-10 Live/Watch off | RESOLVED — stop methods + toggle labels |
+| UX-12 Flutter empty search | RESOLVED |
+| UX-13 orb network as refuse | RESOLVED — networkError copy |
+| UX-15 Semantics | PARTIALLY RESOLVED — orb + nav |
+| SEC-04 CORS | RESOLVED — localhost list; `*` only if listed, no credentials |
+| SEC-05 regex | RESOLVED — `escape_regex` |
+| SEC-06 feedback blob | RESOLVED — 4000 char cap |
+| API-02 limit cap | RESOLVED — clamp 1–50 |
+| DB-01/02/03 indexes+ingest | RESOLVED — unique indexes + upsert-then-drop |
+| AI-01 search LLM | RESOLVED — lexical only |
+| FE-22 offline cache as ask | RESOLVED — offline throws |
+| LOG-08 health ready | RESOLVED — `ready == database` |
+| UX-14 pin≠heart | OPEN — pin upserts; hearts still local |
+| SEC-03 cleartext keys | OPEN |
+| API-06 rate limit | OPEN |
+
 ## Prior backlog status (do not delete)
 
 | Earlier item | This audit |

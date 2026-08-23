@@ -21,3 +21,11 @@ def authorize_control(provided: Optional[str]) -> bool:
     if not expected:
         return True
     return (provided or "").strip() == expected
+
+
+def authorize_cloud(provided: Optional[str]) -> bool:
+    """Cloud backup/restore always fail closed. Token must be set and match."""
+    expected = expected_control_token()
+    if not expected:
+        return False
+    return (provided or "").strip() == expected

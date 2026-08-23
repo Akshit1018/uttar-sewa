@@ -38,6 +38,7 @@ const AppLayout = ({ children, currentView, setCurrentView, language, setLanguag
         key={item.id}
         type="button"
         onClick={() => handleMenuClick(item.id)}
+        aria-label={item.label}
         className={`touch-target w-full flex items-center gap-3 rounded-xl transition-colors ${
           compact ? 'flex-col justify-center gap-1 px-1 py-2 text-[11px]' : 'p-3 text-sm'
         } ${
@@ -125,6 +126,7 @@ const AppLayout = ({ children, currentView, setCurrentView, language, setLanguag
               key={item.id}
               type="button"
               onClick={() => handleMenuClick(item.id)}
+              aria-label={item.label}
               className={`touch-target flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[11px] ${
                 isActive ? 'text-white' : 'text-gray-400'
               }`}
@@ -137,6 +139,7 @@ const AppLayout = ({ children, currentView, setCurrentView, language, setLanguag
         <button
           type="button"
           onClick={toggleMenu}
+          aria-label={language === 'hi' ? 'और मेनू' : 'More menu'}
           className={`touch-target flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[11px] ${
             moreActive || isMenuOpen ? 'text-white' : 'text-gray-400'
           }`}

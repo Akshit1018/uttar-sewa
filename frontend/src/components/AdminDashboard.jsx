@@ -8,8 +8,8 @@ import { useToast } from '../hooks/use-toast';
 import { analyticsService } from '../services/analyticsService';
 import PageShell from './Layout/PageShell';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
+import { controlHeaders } from '../lib/control';
 
 const AdminDashboard = ({ language }) => {
   const [stats, setStats] = useState(null);
@@ -58,7 +58,7 @@ const AdminDashboard = ({ language }) => {
 
   const handleClearProcessingStatus = async () => {
     try {
-      const response = await fetch(`${API}/process/clear`, { method: 'POST' });
+      const response = await fetch(`${API}/process/clear`, { method: 'POST', headers: controlHeaders() });
       if (response.ok) {
         toast({
           title: language === 'hi' ? 'प्रोसेसिंग स्थिति साफ की गई' : 'Processing Status Cleared',

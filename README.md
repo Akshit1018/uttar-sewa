@@ -54,7 +54,7 @@ Set `MONGO_URL` (default `mongodb://localhost:27017`) and `DB_NAME` (default `ut
 
 You can also paste YouTube, Gemini, and Mistral keys in the app (**Settings → Bring your keys**). User keys override `.env` and take effect without a restart. GET `/api/control/keys` never returns the full secret.
 
-If the API is reachable on a network, set `CONTROL_TOKEN` and the same value under **Settings → Control token**. When the variable is empty, write routes stay open for local demo.
+If the API is reachable on a network, set `CONTROL_TOKEN` and the same value under **Settings → Control token**. When the variable is empty, ordinary control writes stay open for local demo. **Cloud backup / restore / sync always require a token** (fail closed even if `CONTROL_TOKEN` is unset).
 
 ## Control API
 
@@ -98,7 +98,7 @@ flutter pub get
 flutter run --dart-define=API_BASE=http://127.0.0.1:8000/api
 ```
 
-Android emulator: use `http://10.0.2.2:8000/api` as `API_BASE`.
+Android emulator: use `http://10.0.2.2:8000/api` as `API_BASE`. On a physical phone, `127.0.0.1` is the phone itself — set **Settings → API URL** to the computer's LAN address (saved in SharedPreferences).
 
 ### Web PWA (optional)
 
@@ -126,7 +126,7 @@ Seekers ask the same questions that already live in long discourse videos. Uttar
 
 ## Status
 
-Flutter client + control API + Mongo bootstrap are in this release. Chat and the japa orb use grounded `/api/ask` (refuse when evidence is thin). Japa increments locally so a bead still counts offline, then syncs. Ingest stores extractive transcript Q&A only (Gemini paraphrases are not written into the grounded corpus). Re-ingest replaces prior segments/Q&A for that video. Public scrape does not follow redirects. Optional `CONTROL_TOKEN` gates write/admin routes. Caption-less videos can use local Whisper audio (`WHISPER_AUDIO_DIR`). Native overlay / Live Activity / Watch channels exist; device proof is still required on a phone. The curated library is used when the database is empty.
+Flutter client + control API + Mongo bootstrap are in this release. Chat and the japa orb use grounded `/api/ask` (refuse when evidence is thin). Japa increments locally so a bead still counts offline, then syncs. Ingest upserts extractive transcript Q&A first, then drops stale rows (a crash does not empty a video). Public scrape does not follow redirects. Optional `CONTROL_TOKEN` gates write/admin routes; cloud backup/restore always fail closed. The PWA never fetches `undefined/api`. Caption-less videos can use local Whisper audio (`WHISPER_AUDIO_DIR`). Native overlay / Live Activity / Watch channels exist and can be toggled off; device proof is still required on a phone. The curated library is used when the database is empty. Copy no longer claims “900+ videos” or that AI invents teaching.
 
 ## License
 

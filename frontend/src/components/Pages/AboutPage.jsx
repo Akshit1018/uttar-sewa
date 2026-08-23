@@ -7,17 +7,17 @@ const AboutPage = ({ language }) => {
   const features = [
     {
       icon: BookOpen,
-      title: language === 'hi' ? '900+ आध्यात्मिक वीडियो' : '900+ Spiritual Videos',
-      description: language === 'hi' 
-        ? 'गुरुजी के सभी प्रवचनों से तुरंत उत्तर प्राप्त करें' 
-        : 'Get instant answers from all spiritual discourses'
+      title: language === 'hi' ? 'इंजेस्टेड प्रवचन' : 'Ingested discourses',
+      description: language === 'hi'
+        ? 'जितने वीडियो इंजेस्ट हुए हैं, उतने ही उद्धृत हो सकते हैं — कोई 900+ दावा नहीं।'
+        : 'Only ingested talks can be cited. There is no 900+ inventory claim.'
     },
     {
       icon: Zap,
-      title: language === 'hi' ? 'तुरंत खोज' : 'Instant Search',
-      description: language === 'hi' 
-        ? 'AI की मदद से सेकंडों में प्रासंगिक उत्तर पाएं' 
-        : 'Get relevant answers in seconds with AI assistance'
+      title: language === 'hi' ? 'उद्धृत खोज' : 'Extractive search',
+      description: language === 'hi'
+        ? 'उत्तर संग्रह से नकल होते हैं; मॉडल नया उपदेश नहीं लिखता।'
+        : 'Answers are copied from the corpus. The model does not invent teaching.'
     },
     {
       icon: Heart,
@@ -85,9 +85,9 @@ const AboutPage = ({ language }) => {
           </CardHeader>
           <CardContent>
             <p className="text-gray-300 leading-relaxed text-sm">
-              {language === 'hi' 
-                ? 'हमारा लक्ष्य है आध्यात्मिक ज्ञान को सभी के लिए सुलभ बनाना। इस ऐप के माध्यम से, आप गुरुजी के 900+ प्रवचनों से किसी भी आध्यात्मिक प्रश्न का तुरंत उत्तर पा सकते हैं। AI तकनीक की मदद से, हम आपके प्रश्न को समझकर सबसे प्रासंगिक उत्तर ढूंढकर लाते हैं।'
-                : 'Our goal is to make spiritual knowledge accessible to everyone. Through this app, you can instantly find answers to any spiritual question from Guruji\'s 900+ discourses. With AI technology, we understand your question and find the most relevant answers.'
+              {language === 'hi'
+                ? 'लक्ष्य है प्रवचनों को समय-चिह्न के साथ खोजना। उत्तर तभी मिलता है जब संग्रह में मिलान हो; नहीं तो ऐप मना कर देता है। सार्वजनिक गीता/विकिपीडिया साथी पाठ अलग से चिह्नित रहते हैं।'
+                : 'The goal is to find discourses with timestamps. An answer appears only when the corpus matches; otherwise the app refuses. Public Gita/Wikipedia companions stay labeled separately.'
               }
             </p>
           </CardContent>

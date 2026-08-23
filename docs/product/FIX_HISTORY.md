@@ -57,3 +57,45 @@
 **Fix:** Optional `CONTROL_TOKEN` / `X-Control-Token`; Flutter Settings field.
 
 **Regression:** `tests/test_control_token.py`.
+
+## Phone/PWA API bootstrap (UX-01, UX-02)
+
+**Symptom:** Flutter talked only to `127.0.0.1`; PWA became `undefined/api`.
+
+**Fix:** Editable Flutter API URL (persisted). PWA `resolveBackendUrl` falls back to page origin, then localhost. `.env.example` has a real origin.
+
+**Regression:** `tests/test_hardening.py` + `mobile/test/api_client_test.dart`.
+
+## Cloud backup/restore ungated (SEC-01)
+
+**Symptom:** `POST /api/cloud/restore` open when token unset.
+
+**Fix:** `authorize_cloud` fail-closed. Token must be set and match.
+
+**Regression:** `test_cloud_routes_require_token_even_when_unset`.
+
+## Ingest delete-then-insert hole (DB-03)
+
+**Symptom:** Crash after delete emptied a video.
+
+**Fix:** Upsert extractive rows first, then drop stale keys.
+
+**Regression:** `test_reingest_replaces_existing_segments_and_qa`.
+
+## Search LLM / ultra path (AI-01)
+
+**Symptom:** `/search` could rank via LLM.
+
+**Fix:** Lexical `rank_answers` only.
+
+## Empty-corpus / 900+ copy / fake settings
+
+**Symptom:** Chat hid empty corpus; About claimed 900+ AI answers; Dark Mode / Auto Download did nothing; clear had no confirm.
+
+**Fix:** Chat/Flutter empty-corpus banners; honest copy; removed fake toggles; confirm on Settings/Favorites clear.
+
+## Ask channel + offline + Live/Watch off
+
+**Symptom:** Flutter Chat / PWA orb omitted `channel_id`; offline Chat reused search cache; Live/Watch start-only; undo skipped native count.
+
+**Fix:** Channel on all ask clients; offline throws; stop Live/Watch methods; undo calls `updateCount`.

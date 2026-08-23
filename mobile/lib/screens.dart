@@ -15,9 +15,11 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
   final _history = <String>[];
   AskResult? _result;
   bool _loading = false;
+  int _seenAskTick = 0;
 
   Future<void> _send([String? text]) async {
     final query = (text ?? _controller.text).trim();
@@ -38,14 +40,32 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _seenAskTick = widget.state.askFocusTick;
+    widget.state.addListener(_focusIfAsked);
+  }
+
+  void _focusIfAsked() {
+    if (widget.state.askFocusTick == _seenAskTick) return;
+    _seenAskTick = widget.state.askFocusTick;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  @override
   void dispose() {
+    widget.state.removeListener(_focusIfAsked);
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
+    final qaCount = asInt((state.dashboard?.stats ?? const {})['total_qa_pairs']);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
@@ -55,9 +75,20 @@ class _ChatScreenState extends State<ChatScreen> {
           state.t('उत्तर केवल वीडियो से। होल्ड = पूछें।', 'Answers only from videos. Hold the orb to ask.'),
           style: const TextStyle(color: Colors.white70),
         ),
+        if (qaCount == 0) ...[
+          const SizedBox(height: 12),
+          Text(
+            state.t(
+              'संग्रह खाली है — प्रोसेसिंग/कंट्रोल से वीडियो इंजेस्ट करें, वरना उत्तर नहीं मिलेगा।',
+              'The corpus is empty — ingest videos from Control/Processing or questions will be refused.',
+            ),
+            style: const TextStyle(color: Colors.amber),
+          ),
+        ],
         const SizedBox(height: 12),
         TextField(
           controller: _controller,
+          focusNode: _focus,
           minLines: 1,
           maxLines: 3,
           textInputAction: TextInputAction.send,
@@ -107,6 +138,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
   List<SearchHit> _hits = const [];
   bool _loading = false;
+  bool _searched = false;
 
   Future<void> _run() async {
     final query = _controller.text.trim();
@@ -115,7 +147,10 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final hits = await widget.state.search(query, const []);
       if (!mounted) return;
-      setState(() => _hits = hits);
+      setState(() {
+        _hits = hits;
+        _searched = true;
+      });
     } catch (err) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
@@ -166,6 +201,11 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         if (_loading) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
         const SizedBox(height: 12),
+        if (_searched && !_loading && _hits.isEmpty)
+          Text(
+            state.t('कोई क्लिप नहीं मिला — प्रश्न बदलें या चैनल “सभी” करें।', 'No clips found — rephrase, or set the channel to All.'),
+            style: const TextStyle(color: Colors.amber),
+          ),
         ..._hits.map((hit) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: ClipCard(hit: hit, state: state, onPin: () => state.pinHit(hit)),
@@ -240,12 +280,18 @@ class SadhanaScreen extends StatelessWidget {
         const SizedBox(height: 8),
         OutlinedButton(
           onPressed: state.toggleLiveActivity,
-          child: Text(state.t('लाइव गतिविधि', 'Live Activity')),
+          child: Text(
+            state.liveActivityOn
+                ? state.t('लाइव गतिविधि बंद', 'Stop Live Activity')
+                : state.t('लाइव गतिविधि', 'Live Activity'),
+          ),
         ),
         const SizedBox(height: 8),
         OutlinedButton(
           onPressed: state.toggleWatch,
-          child: Text(state.t('घड़ी', 'Watch')),
+          child: Text(
+            state.watchOn ? state.t('घड़ी बंद', 'Stop watch') : state.t('घड़ी', 'Watch'),
+          ),
         ),
         if (state.today?.gita != null) ...[
           const SizedBox(height: 24),
@@ -442,10 +488,7 @@ class SettingsScreen extends StatelessWidget {
           value: state.isHindi,
           onChanged: (value) => state.setLanguage(value ? 'hi' : 'en'),
         ),
-        ListTile(
-          title: Text(state.t('API', 'API')),
-          subtitle: Text(state.api.baseUrl),
-        ),
+        ApiBaseField(state: state),
         ControlTokenField(state: state),
         ListTile(
           title: Text(state.t('डेटाबेस', 'Database')),
@@ -516,6 +559,55 @@ class _ScrapeBoxState extends State<ScrapeBox> {
           Text(_preview!, style: const TextStyle(color: Colors.white70, height: 1.4)),
         ],
       ],
+    );
+  }
+}
+
+class ApiBaseField extends StatefulWidget {
+  const ApiBaseField({super.key, required this.state});
+  final AppState state;
+
+  @override
+  State<ApiBaseField> createState() => _ApiBaseFieldState();
+}
+
+class _ApiBaseFieldState extends State<ApiBaseField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.state.api.baseUrl);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.url,
+        autocorrect: false,
+        onSubmitted: widget.state.setApiBase,
+        decoration: InputDecoration(
+          labelText: widget.state.t('API पता', 'API URL'),
+          hintText: 'http://192.168.1.10:8000/api',
+          helperText: widget.state.t(
+            'फ़ोन पर 127.0.0.1 काम नहीं करता — लैपटॉप का LAN पता लिखें।',
+            '127.0.0.1 fails on a phone — use the computer LAN address.',
+          ),
+          suffixIcon: IconButton(
+            onPressed: () => widget.state.setApiBase(_controller.text),
+            icon: const Icon(Icons.save_outlined),
+          ),
+        ),
+      ),
     );
   }
 }

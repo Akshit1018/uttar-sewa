@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
+
+from backend.services.query_safety import clamp_limit
 
 class VideoModel(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -46,6 +48,11 @@ class SearchQuery(BaseModel):
     conversation_history: List[str] = Field(default_factory=list)
     channel_id: Optional[str] = None
 
+    @field_validator("limit", mode="before")
+    @classmethod
+    def _clamp_search_limit(cls, value):
+        return clamp_limit(value)
+
 class SearchResult(BaseModel):
     question: str
     answer: str
@@ -74,6 +81,11 @@ class AskQuery(BaseModel):
     conversation_history: List[str] = Field(default_factory=list)
     channel_id: Optional[str] = None
     include_companions: bool = False
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def _clamp_ask_limit(cls, value):
+        return clamp_limit(value, high=20)
 
 class MalaState(BaseModel):
     beads_today: int = 0
@@ -136,6 +148,23 @@ class ScrapeRequest(BaseModel):
 
 class VideoMetaRequest(BaseModel):
     video_id: str
+
+
+class FeedbackRequest(BaseModel):
+    type: Optional[str] = "general"
+    rating: Optional[int] = None
+    message: str = ""
+    user_agent: Optional[str] = ""
+    page: Optional[str] = ""
+    language: Optional[str] = "en"
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def _message_len(cls, value):
+        text = str(value or "")
+        if len(text) > 4000:
+            raise ValueError("message too long")
+        return text
 
 
 class IngestRequest(BaseModel):

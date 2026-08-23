@@ -106,14 +106,19 @@ class _HomeShellState extends State<HomeShell> {
       body: Stack(
         children: [
           pages[index],
-          if (state.error != null && state.dashboard == null)
+          if (state.error != null)
             Align(
               alignment: Alignment.topCenter,
               child: Material(
                 color: Colors.amber.shade800,
                 child: Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Text(state.t('API से जुड़ नहीं पाए — बाद में रिफ्रेश करें', 'Could not reach the API — refresh later')),
+                  child: Text(
+                    state.t(
+                      'API नहीं मिला (${state.api.baseUrl}) — सेटिंग में URL लिखें',
+                      'API unreachable (${state.api.baseUrl}) — set the URL in Settings',
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -124,11 +129,31 @@ class _HomeShellState extends State<HomeShell> {
         selectedIndex: index,
         onDestinationSelected: (value) => setState(() => index = value),
         destinations: [
-          NavigationDestination(icon: const Icon(Icons.chat_bubble_outline), label: state.t('चैट', 'Chat')),
-          NavigationDestination(icon: const Icon(Icons.search), label: state.t('खोज', 'Search')),
-          NavigationDestination(icon: const Icon(Icons.circle_outlined), label: state.t('साधना', 'Sadhana')),
-          NavigationDestination(icon: const Icon(Icons.dashboard_outlined), label: state.t('कंट्रोल', 'Control')),
-          NavigationDestination(icon: const Icon(Icons.settings_outlined), label: state.t('सेटिंग', 'Settings')),
+          NavigationDestination(
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: state.t('चैट', 'Chat'),
+            tooltip: state.t('प्रवचन से पूछें', 'Ask from the discourses'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.search),
+            label: state.t('खोज', 'Search'),
+            tooltip: state.t('प्रवचन खोजें', 'Search discourses'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.circle_outlined),
+            label: state.t('साधना', 'Sadhana'),
+            tooltip: state.t('जप माला', 'Japa mala'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.dashboard_outlined),
+            label: state.t('कंट्रोल', 'Control'),
+            tooltip: state.t('ऑपरेटर डैशबोर्ड', 'Operator dashboard'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            label: state.t('सेटिंग', 'Settings'),
+            tooltip: state.t('API और कुंजी', 'API and keys'),
+          ),
         ],
       ),
     );

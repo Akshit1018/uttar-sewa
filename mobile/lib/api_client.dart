@@ -13,12 +13,26 @@ class ApiException implements Exception {
   String toString() => 'API $status';
 }
 
+String resolveApiBase(String? configured, {String fallback = 'http://127.0.0.1:8000/api'}) {
+  var raw = (configured ?? '').trim();
+  if (raw.endsWith('/')) {
+    raw = raw.substring(0, raw.length - 1);
+  }
+  if (raw.isEmpty || raw == 'undefined' || raw == 'null') {
+    return fallback;
+  }
+  if (raw.endsWith('/api')) {
+    return raw;
+  }
+  return '$raw/api';
+}
+
 class ApiClient {
   ApiClient({String? baseUrl, String controlToken = ''})
-      : baseUrl = baseUrl ?? _fromEnv(),
+      : baseUrl = resolveApiBase(baseUrl ?? _fromEnv()),
         controlToken = controlToken;
 
-  final String baseUrl;
+  String baseUrl;
   String controlToken;
 
   static String _fromEnv() {
@@ -98,12 +112,14 @@ class ApiClient {
     required String query,
     required String language,
     List<String> history = const [],
+    String? channelId,
   }) async {
     final data = await _post('/ask', {
       'query': query,
       'language': language,
       'limit': 3,
       'conversation_history': history,
+      'channel_id': channelId == 'all' ? null : channelId,
     }) as Map<String, dynamic>;
     return AskResult.fromJson(data);
   }

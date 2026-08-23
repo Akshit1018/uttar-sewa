@@ -31,9 +31,18 @@ enum SadhanaWatch {
     }
     return true
   }
+
+  static func stopSession() {
+    guard WCSession.isSupported() else { return }
+    let session = WCSession.default
+    if session.activationState == .activated {
+      session.transferUserInfo(["running": false])
+    }
+  }
 }
 #else
 enum SadhanaWatch {
   static func startSession() -> Bool { false }
+  static func stopSession() {}
 }
 #endif

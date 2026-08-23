@@ -27,6 +27,12 @@ const FavoritesPage = ({ language }) => {
   };
 
   const handleClearAll = () => {
+    const confirmed = window.confirm(
+      language === 'hi'
+        ? 'सभी स्थानीय पसंदीदा हट जाएँगे। आगे बढ़ें?'
+        : 'This removes all local favorites. Continue?'
+    );
+    if (!confirmed) return;
     clearFavorites();
     toast({
       title: language === 'hi' ? 'सभी पसंदीदा साफ किए गए' : 'All Favorites Cleared',

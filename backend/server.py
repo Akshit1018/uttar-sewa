@@ -21,12 +21,12 @@ from backend.models import (
     VideoModel, TranscriptSegment, QuestionAnswer,
     SearchQuery, SearchResult, ProcessingStatus, RecommendationRequest,
     AskQuery, MalaState, ControlSettingsPatch, PinQaRequest, MalaSyncRequest,
-    CompanionQuery, ScrapeRequest, VideoMetaRequest, IngestRequest, ByokKeysPatch
+    CompanionQuery, ScrapeRequest, VideoMetaRequest, IngestRequest, ByokKeysPatch,
+    FeedbackRequest,
 )
 from backend.services.processing_service import ProcessingService
 from backend.services.llm_service import LLMService
 from backend.services.youtube_service import YouTubeService
-from backend.services.enhanced_search_coordinator import enhanced_search_coordinator
 from backend.services.relevance_search import (
     expand_query, rank_answers, related_questions, library_as_qa, recommend_from_history
 )
@@ -51,7 +51,8 @@ from backend.services.control_store import (
 )
 from backend.services.database import bootstrap_database
 from backend.db_schema import SETTINGS_DOC_ID, SECRETS_DOC_ID
-from backend.services.control_auth import authorize_control, control_token_required
+from backend.services.control_auth import authorize_cloud, authorize_control, control_token_required
+from backend.services.query_safety import clamp_limit, escape_regex
 from backend.services.byok import (
     apply_env,
     memory_secrets,
@@ -105,6 +106,11 @@ async def require_control(x_control_token: Optional[str] = Header(default=None))
     if not authorize_control(x_control_token):
         raise HTTPException(status_code=401, detail="control token required")
 
+
+async def require_cloud(x_control_token: Optional[str] = Header(default=None)):
+    if not authorize_cloud(x_control_token):
+        raise HTTPException(status_code=401, detail="CONTROL_TOKEN required for cloud backup/restore")
+
 @api_router.get("/")
 async def root():
     return {
@@ -130,12 +136,12 @@ async def health():
         "ok": True,
         "api": True,
         "database": mongo_ok,
-        "ready": True,
         "enrichment": True,
         "byok": True,
         "keys_ready": keys["ready"],
         "keys_configured": keys["keys_configured"],
         "control_locked": control_token_required(),
+        "ready": mongo_ok,
     }
 
 @api_router.post("/process/start")
@@ -264,25 +270,6 @@ async def search_questions(query: SearchQuery):
             limit=query.limit,
             channel_id=query.channel_id,
         )
-
-        if len(relevant_answers) < query.limit:
-            try:
-                extra = await enhanced_search_coordinator.search(
-                    user_query=expanded,
-                    qa_database=qa_database,
-                    limit=query.limit,
-                    strategy="ultra",
-                )
-                seen = {(item.get("video_id"), item.get("question")) for item in relevant_answers}
-                for item in extra:
-                    key = (item.get("video_id"), item.get("question"))
-                    if key not in seen:
-                        relevant_answers.append(item)
-                        seen.add(key)
-                    if len(relevant_answers) >= query.limit:
-                        break
-            except Exception as extra_error:
-                logger.warning(f"Optional ultra search skipped: {extra_error}")
 
         results = []
         for answer in relevant_answers[: query.limit]:
@@ -516,7 +503,11 @@ async def put_control_keys(body: ByokKeysPatch, _auth: None = Depends(require_co
 async def pin_qa(body: PinQaRequest, _auth: None = Depends(require_control)):
     doc = pin_document(body.model_dump())
     try:
-        await db.pinned_qa.insert_one(dict(doc))
+        await db.pinned_qa.replace_one(
+            {"video_id": doc.get("video_id") or "", "question": doc.get("question") or ""},
+            dict(doc),
+            upsert=True,
+        )
         if doc.get("video_id"):
             await db.question_answers.update_many(
                 {"video_id": doc["video_id"], "question": doc["question"]},
@@ -887,12 +878,13 @@ async def get_last_processing_time():
 async def get_search_suggestions(query: str = "", limit: int = 5):
     """Get contextual search suggestions based on query"""
     try:
+        limit = clamp_limit(limit, high=20)
         suggestions = []
         
         if query and len(query) > 2:
             # Search for similar questions in database
             similar_questions = await db.question_answers.find(
-                {"question": {"$regex": query, "$options": "i"}},
+                {"question": {"$regex": escape_regex(query), "$options": "i"}},
                 {"question": 1}
             ).limit(limit).to_list(limit)
             
@@ -913,21 +905,21 @@ async def get_search_suggestions(query: str = "", limit: int = 5):
             "count": len(suggestions)
         }
     except Exception as e:
-        logger.error(f"Error getting search suggestions: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning(f"Error getting search suggestions: {str(e)}")
+        return {"suggestions": [], "query": query, "count": 0}
 
 @api_router.post("/feedback")
-async def submit_feedback(feedback_data: dict):
+async def submit_feedback(feedback_data: FeedbackRequest):
     """Submit user feedback"""
     try:
         feedback_entry = {
             "id": str(uuid.uuid4()),
-            "type": feedback_data.get("type", "general"),
-            "rating": feedback_data.get("rating"),
-            "message": feedback_data.get("message", ""),
-            "user_agent": feedback_data.get("user_agent", ""),
-            "page": feedback_data.get("page", ""),
-            "language": feedback_data.get("language", "en"),
+            "type": feedback_data.type or "general",
+            "rating": feedback_data.rating,
+            "message": feedback_data.message,
+            "user_agent": feedback_data.user_agent or "",
+            "page": feedback_data.page or "",
+            "language": feedback_data.language or "en",
             "timestamp": datetime.utcnow()
         }
         
@@ -943,7 +935,7 @@ async def submit_feedback(feedback_data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/cloud/backup")
-async def backup_to_cloud():
+async def backup_to_cloud(_auth: None = Depends(require_cloud)):
     """Backup local data to Google Cloud Firestore"""
     try:
         from backend.services.cloud_database_service import cloud_db
@@ -970,7 +962,7 @@ async def backup_to_cloud():
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/cloud/restore")
-async def restore_from_cloud():
+async def restore_from_cloud(_auth: None = Depends(require_cloud)):
     """Restore data from Google Cloud Firestore"""
     try:
         from backend.services.cloud_database_service import cloud_db
@@ -1088,7 +1080,7 @@ def get_sync_recommendations(cloud_stats: dict, local_stats: dict) -> list:
     return recommendations
 
 @api_router.post("/cloud/sync")
-async def sync_with_cloud():
+async def sync_with_cloud(_auth: None = Depends(require_cloud)):
     """Smart synchronization with cloud database"""
     try:
         from backend.services.cloud_database_service import cloud_db
@@ -1148,10 +1140,19 @@ async def sync_with_cloud():
 # Include the router in the main app
 app.include_router(api_router)
 
+_cors = [item.strip() for item in (os.environ.get("CORS_ORIGINS") or "").split(",") if item.strip()]
+if not _cors:
+    _cors = [
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    ]
+_star = "*" in _cors
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
+    allow_credentials=not _star,
+    allow_origins=["*"] if _star else _cors,
     allow_methods=["*"],
     allow_headers=["*"],
 )

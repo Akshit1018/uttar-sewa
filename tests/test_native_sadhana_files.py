@@ -27,6 +27,8 @@ def test_ios_live_activity_and_watch_stubs():
     delegate = IOS_DELEGATE.read_text()
     assert "sewa.uttar/sadhana" in delegate
     assert "startLiveActivity" in delegate
+    assert "stopLiveActivity" in delegate
+    assert "stopWatchSession" in delegate
     live = IOS_LIVE.read_text()
     assert "ActivityKit" in live
     assert "SadhanaAttributes" in live

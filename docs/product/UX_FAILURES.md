@@ -5,15 +5,15 @@ Hostile first-time user + UX researcher. Evidence from code; browser not run (UN
 ## CRITICAL / HIGH
 
 ### UX-01 — App is dead on a real phone
-Flutter default API `http://127.0.0.1:8000/api` (`api_client.dart:24-27`). No first-run URL screen.  
+Flutter default API `http://127.0.0.1:8000/api`. **REPAIR (2026-08-23):** Settings API URL + persist + always-visible error banner. Default is still loopback until the seeker sets a LAN host.  
 **Pain:** “I installed it. Nothing works.”  
 **SEVERITY:** CRITICAL  
-**CONFIDENCE:** CONFIRMED  
+**CONFIDENCE:** CONFIRMED (default still loopback; path to fix is in Settings)  
 
 ### UX-02 — PWA fetches `undefined/api`
-`REACT_APP_BACKEND_URL=` empty (`frontend/.env.example`).  
+`REACT_APP_BACKEND_URL=` empty used to become `undefined/api`. **REPAIR:** `frontend/src/lib/backend.js` + `.env.example` default origin.  
 **SEVERITY:** CRITICAL  
-**CONFIDENCE:** CONFIRMED  
+**STATUS:** RESOLVED in code; browser UNVERIFIED  
 
 ### UX-03 — No onboarding
 Grep onboarding/firstLaunch: none. Seeker lands on Chat. Control tab sits in Flutter bottom nav (operator ingest/BYOK).  

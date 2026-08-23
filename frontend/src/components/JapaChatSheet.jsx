@@ -7,10 +7,9 @@ import { VideoTimestampLink } from './VideoTimestampLink';
 import { t } from '../utils/translations';
 import { shareCard } from '../lib/practice';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
 
-const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
+const JapaChatSheet = ({ language, open, onClose, onAsked, channelId }) => {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -32,6 +31,7 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
           language,
           conversation_history: history.slice(-4),
           limit: 3,
+          channel_id: channelId && channelId !== 'all' ? channelId : null,
         }),
       });
       if (!response.ok) {
@@ -44,8 +44,11 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
       if (onAsked) onAsked();
     } catch (askError) {
       setResult({
-        refused: true,
-        answer: language === 'hi' ? 'उत्तर नहीं मिल सका।' : 'Could not fetch an answer.',
+        refused: false,
+        networkError: true,
+        answer: language === 'hi'
+          ? 'नेटवर्क नहीं मिला — जप चल सकता है, प्रश्न के लिए API चाहिए।'
+          : 'Network error. Japa still works; asking needs the API.',
         clips: [],
       });
     } finally {
@@ -149,7 +152,7 @@ const JapaChatSheet = ({ language, open, onClose, onAsked }) => {
               </div>
             ))}
             <div className="flex items-start justify-between gap-2">
-              <p className={`text-sm leading-relaxed min-w-0 ${result.refused ? 'text-amber-200' : 'text-white'}`}>
+              <p className={`text-sm leading-relaxed min-w-0 ${result.refused || result.networkError ? 'text-amber-200' : 'text-white'}`}>
                 {result.answer}
               </p>
               <div className="flex shrink-0">

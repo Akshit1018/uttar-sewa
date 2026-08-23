@@ -20,8 +20,8 @@ import { analyticsService } from "./services/analyticsService";
 import { msUntil, nextSandhya, readPractice, readSettings } from "./lib/practice";
 import { notificationService } from "./services/notificationService";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from './lib/backend';
+import { useChannels } from './hooks/useChannels';
 
 const MainApp = () => {
   const [currentView, setCurrentView] = useState('chat');
@@ -29,6 +29,7 @@ const MainApp = () => {
   const [language, setLanguage] = useState('hi'); // Default to Hindi as requested
   const [chatOpen, setChatOpen] = useState(false);
   const { state: malaState, tap, undo, recordQuestion, practice, reload } = useMala(language);
+  const { channelId } = useChannels();
 
   useEffect(() => {
     loadStats();
@@ -125,7 +126,7 @@ const MainApp = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'chat':
-        return <ChatInterface language={language} />;
+        return <ChatInterface language={language} stats={stats} />;
       case 'sadhana':
         return <SadhanaDashboard language={language} state={malaState} onPracticeChange={reload} />;
       case 'search':
@@ -139,13 +140,13 @@ const MainApp = () => {
       case 'profile':
         return <ProfilePage language={language} setCurrentView={setCurrentView} />;
       case 'about':
-        return <AboutPage language={language} />;
+        return <AboutPage language={language} stats={stats} />;
       case 'terms':
         return <TermsPage language={language} />;
       case 'settings':
         return <SettingsPage language={language} setLanguage={setLanguage} />;
       default:
-        return <ChatInterface language={language} />;
+        return <ChatInterface language={language} stats={stats} />;
     }
   };
 
@@ -169,6 +170,7 @@ const MainApp = () => {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         onAsked={recordQuestion}
+        channelId={channelId}
       />
       <Toaster />
     </AppLayout>

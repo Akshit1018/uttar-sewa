@@ -33,7 +33,8 @@ class MainActivity : FlutterActivity() {
                     stopService(Intent(this, JapaOverlayService::class.java))
                     result.success(null)
                 }
-                "startLiveActivity", "updateLiveActivity", "startWatchSession" ->
+                "startLiveActivity", "updateLiveActivity", "startWatchSession",
+                "stopLiveActivity", "stopWatchSession" ->
                     result.success(false)
                 else -> result.notImplemented()
             }

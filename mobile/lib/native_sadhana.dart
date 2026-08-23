@@ -34,6 +34,14 @@ class NativeSadhana {
     return await _invoke<bool>('startWatchSession') ?? false;
   }
 
+  Future<void> stopLiveActivity() async {
+    await _invoke<void>('stopLiveActivity');
+  }
+
+  Future<void> stopWatchSession() async {
+    await _invoke<void>('stopWatchSession');
+  }
+
   void attach() {
     if (listening) {
       return;

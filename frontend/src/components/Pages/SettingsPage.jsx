@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Globe, Bell, Download, Trash2, Moon, DownloadCloud } from 'lucide-react';
+import { Settings, Globe, Bell, Trash2, DownloadCloud, KeyRound } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
+import { Input } from '../ui/input';
 import PageShell from '../Layout/PageShell';
 import { readSettings, writeSettings } from '../../lib/practice';
 import { notificationService } from '../../services/notificationService';
+import { API, BACKEND_URL } from '../../lib/backend';
+import { readControlToken, writeControlToken } from '../../lib/control';
 
 const SettingsPage = ({ language, setLanguage }) => {
   const [prefs, setPrefs] = useState(readSettings);
   const [canInstall, setCanInstall] = useState(false);
   const [installEvent, setInstallEvent] = useState(null);
+  const [controlToken, setControlToken] = useState(readControlToken);
 
   useEffect(() => {
     setPrefs(readSettings());
@@ -33,6 +37,12 @@ const SettingsPage = ({ language, setLanguage }) => {
   };
 
   const clearData = () => {
+    const confirmed = window.confirm(
+      language === 'hi'
+        ? 'सभी स्थानीय इतिहास, पसंदीदा और सेटिंग हट जाएँगी। आगे बढ़ें?'
+        : 'This removes local history, favorites, and settings. Continue?'
+    );
+    if (!confirmed) return;
     localStorage.clear();
     window.dispatchEvent(new Event('uttar-sewa-practice'));
     alert(language === 'hi' ? 'डेटा साफ़ कर दिया गया' : 'Data cleared');
@@ -73,24 +83,22 @@ const SettingsPage = ({ language, setLanguage }) => {
       )
     },
     {
-      icon: Download,
-      title: language === 'hi' ? 'ऑटो डाउनलोड' : 'Auto Download',
-      description: language === 'hi' ? 'उत्तर स्वचालित रूप से सहेजें' : 'Automatically save answers',
+      icon: KeyRound,
+      title: language === 'hi' ? 'कंट्रोल टोकन' : 'Control token',
+      description: language === 'hi'
+        ? 'प्रोसेसिंग / कुंजी लिखने के लिए CONTROL_TOKEN'
+        : 'Required for processing and key writes when CONTROL_TOKEN is set',
       action: (
-        <Switch
-          checked={Boolean(prefs.autoDownload)}
-          onCheckedChange={(value) => savePrefs({ autoDownload: value })}
-        />
-      )
-    },
-    {
-      icon: Moon,
-      title: language === 'hi' ? 'डार्क मोड' : 'Dark Mode',
-      description: language === 'hi' ? 'डार्क थीम का उपयोग करें' : 'Use dark theme',
-      action: (
-        <Switch
-          checked={Boolean(prefs.darkMode)}
-          onCheckedChange={(value) => savePrefs({ darkMode: value })}
+        <Input
+          type="password"
+          value={controlToken}
+          onChange={(event) => {
+            const next = event.target.value;
+            setControlToken(next);
+            writeControlToken(next);
+          }}
+          className="bg-white/5 border-white/20 text-white w-40"
+          placeholder="CONTROL_TOKEN"
         />
       )
     }
@@ -112,10 +120,20 @@ const SettingsPage = ({ language, setLanguage }) => {
         </div>
 
         <Card className="bg-white/5 border border-white/10 rounded-2xl mb-6">
-          <CardContent className="p-4 text-sm text-gray-300 leading-relaxed">
-            {language === 'hi'
-              ? 'माला गोल इस ऐप पर हमेशा तैरता है। टैप = मनका, 2.5 सेकंड दबाएँ = चैट। माइक्रोफ़ोन की अनुमति पहली बार बोलने पर माँगी जाएगी। अन्य ऐप्स के ऊपर तैरना केवल Android नेटिव शेल में संभव है; iPhone इसकी अनुमति नहीं देता।'
-              : 'The mala orb always floats inside this app. Tap = bead, hold 2.5s = chat. Microphone permission is requested the first time you speak. Drawing over other apps is only possible in an Android native shell; iPhone does not allow it.'}
+          <CardContent className="p-4 text-sm text-gray-300 leading-relaxed space-y-2">
+            <p>
+              {language === 'hi'
+                ? 'माला गोल इस ऐप पर हमेशा तैरता है। टैप = मनका, 2.5 सेकंड दबाएँ = चैट। माइक्रोफ़ोन की अनुमति पहली बार बोलने पर माँगी जाएगी। अन्य ऐप्स के ऊपर तैरना केवल Android नेटिव शेल में संभव है; iPhone इसकी अनुमति नहीं देता।'
+                : 'The mala orb always floats inside this app. Tap = bead, hold 2.5s = chat. Microphone permission is requested the first time you speak. Drawing over other apps is only possible in an Android native shell; iPhone does not allow it.'}
+            </p>
+            <p className="text-xs text-gray-400 break-all">
+              {language === 'hi' ? 'API:' : 'API:'} {API} ({BACKEND_URL})
+            </p>
+            <p className="text-xs text-gray-500">
+              {language === 'hi'
+                ? 'थीम काली ही है। ऑटो-डाउनलोड टॉगल नहीं है — वह नकली नियंत्रण था।'
+                : 'The theme is always dark. There is no auto-download toggle — that control was fake.'}
+            </p>
           </CardContent>
         </Card>
 

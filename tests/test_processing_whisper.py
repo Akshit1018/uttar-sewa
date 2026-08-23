@@ -33,6 +33,31 @@ class FakeCollection:
             remaining.append(doc)
         self.docs = remaining
 
+    async def replace_one(self, filt, doc, upsert=False):
+        for index, existing in enumerate(self.docs):
+            if all(existing.get(key) == value for key, value in filt.items()):
+                self.docs[index] = dict(doc)
+                return
+        if upsert:
+            self.docs.append(dict(doc))
+
+    def find(self, filt=None, *args, **kwargs):
+        filt = filt or {}
+
+        class _Cursor:
+            def __init__(self, rows):
+                self.rows = rows
+
+            async def to_list(self, _n):
+                return list(self.rows)
+
+        matched = [
+            dict(doc)
+            for doc in self.docs
+            if all(doc.get(key) == value for key, value in filt.items())
+        ]
+        return _Cursor(matched)
+
 
 class FakeDB:
     def __init__(self):

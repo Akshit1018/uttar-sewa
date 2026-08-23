@@ -1,3 +1,12 @@
+String malaDayKey([DateTime? now]) {
+  final day = now ?? DateTime.now();
+  return '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+}
+
+bool malaNeedsRollover(String storedDay, String today) {
+  return storedDay.isNotEmpty && storedDay != today;
+}
+
 int asInt(Object? value, [int fallback = 0]) {
   if (value is int) return value;
   if (value is num) return value.toInt();

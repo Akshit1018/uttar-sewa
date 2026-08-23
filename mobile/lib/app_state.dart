@@ -28,6 +28,7 @@ class AppState extends ChangeNotifier {
   String? error;
   bool loading = false;
   bool askRequested = false;
+  int askFocusTick = 0;
 
   bool overlayOn = false;
   bool liveActivityOn = false;
@@ -44,14 +45,28 @@ class AppState extends ChangeNotifier {
     deviceId = prefs.getString('deviceId') ?? DateTime.now().millisecondsSinceEpoch.toString();
     await prefs.setString('deviceId', deviceId);
     api.controlToken = prefs.getString('controlToken') ?? '';
-    mala = MalaState(
-      beadsToday: prefs.getInt('beads') ?? 0,
-      cyclesToday: prefs.getInt('cycles') ?? 0,
-      currentInCycle: prefs.getInt('current') ?? 0,
-      questionsToday: prefs.getInt('questions') ?? 0,
-      beadsPerCycle: prefs.getInt('cycle') ?? 108,
-      mantraId: prefs.getString('mantra') ?? 'ram',
-    );
+    final savedBase = prefs.getString('apiBase');
+    if (savedBase != null && savedBase.isNotEmpty) {
+      api.baseUrl = resolveApiBase(savedBase);
+    }
+    final today = malaDayKey();
+    final storedDay = prefs.getString('malaDay') ?? '';
+    if (malaNeedsRollover(storedDay, today)) {
+      mala = MalaState(
+        beadsPerCycle: prefs.getInt('cycle') ?? 108,
+        mantraId: prefs.getString('mantra') ?? 'ram',
+      );
+    } else {
+      mala = MalaState(
+        beadsToday: prefs.getInt('beads') ?? 0,
+        cyclesToday: prefs.getInt('cycles') ?? 0,
+        currentInCycle: prefs.getInt('current') ?? 0,
+        questionsToday: prefs.getInt('questions') ?? 0,
+        beadsPerCycle: prefs.getInt('cycle') ?? 108,
+        mantraId: prefs.getString('mantra') ?? 'ram',
+      );
+    }
+    await prefs.setString('malaDay', today);
     try {
       channels = await api.channels();
       health = await api.health();
@@ -70,6 +85,7 @@ class AppState extends ChangeNotifier {
 
   void openAsk() {
     askRequested = true;
+    askFocusTick += 1;
     notifyListeners();
   }
 
@@ -102,9 +118,8 @@ class AppState extends ChangeNotifier {
     await prefs.setInt('questions', mala.questionsToday);
     await prefs.setInt('cycle', mala.beadsPerCycle);
     await prefs.setString('mantra', mala.mantraId);
-    final now = DateTime.now();
-    final day =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    await prefs.setString('malaDay', malaDayKey());
+    final day = malaDayKey();
     try {
       await api.syncMala(deviceId: deviceId, day: day, state: mala);
     } catch (_) {}
@@ -114,6 +129,20 @@ class AppState extends ChangeNotifier {
     api.controlToken = value.trim();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('controlToken', api.controlToken);
+    notifyListeners();
+  }
+
+  Future<void> setApiBase(String value) async {
+    api.baseUrl = resolveApiBase(value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('apiBase', api.baseUrl);
+    try {
+      health = await api.health();
+      error = null;
+      await refreshDashboard();
+    } catch (err) {
+      error = err.toString();
+    }
     notifyListeners();
   }
 
@@ -131,10 +160,19 @@ class AppState extends ChangeNotifier {
     mala = mala.applyUndo();
     notifyListeners();
     await persistMala();
+    await native.updateCount(beads: mala.currentInCycle, cycle: mala.beadsPerCycle);
+    if (liveActivityOn) {
+      await native.updateLiveActivity(beads: mala.currentInCycle, cycle: mala.beadsPerCycle);
+    }
   }
 
   Future<AskResult> ask(String query, List<String> history) async {
-    final result = await api.ask(query: query, language: language, history: history);
+    final result = await api.ask(
+      query: query,
+      language: language,
+      history: history,
+      channelId: channelId,
+    );
     mala = mala.copyWith(questionsToday: mala.questionsToday + 1);
     await persistMala();
     notifyListeners();
@@ -200,15 +238,25 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> toggleLiveActivity() async {
-    liveActivityOn = await native.startLiveActivity(
-      beads: mala.currentInCycle,
-      cycle: mala.beadsPerCycle,
-    );
+    if (liveActivityOn) {
+      await native.stopLiveActivity();
+      liveActivityOn = false;
+    } else {
+      liveActivityOn = await native.startLiveActivity(
+        beads: mala.currentInCycle,
+        cycle: mala.beadsPerCycle,
+      );
+    }
     notifyListeners();
   }
 
   Future<void> toggleWatch() async {
-    watchOn = await native.startWatchSession();
+    if (watchOn) {
+      await native.stopWatchSession();
+      watchOn = false;
+    } else {
+      watchOn = await native.startWatchSession();
+    }
     notifyListeners();
   }
 }

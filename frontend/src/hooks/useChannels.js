@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
 const CHANNEL_KEY = 'preferredChannel';
 
 const FALLBACK_CHANNELS = [

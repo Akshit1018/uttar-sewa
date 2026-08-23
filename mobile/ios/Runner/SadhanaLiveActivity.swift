@@ -37,10 +37,21 @@ enum SadhanaLiveActivity {
       }
     }
   }
+
+  static func stop() {
+    if #available(iOS 16.1, *) {
+      Task {
+        for activity in Activity<SadhanaAttributes>.activities {
+          await activity.end(dismissalPolicy: .immediate)
+        }
+      }
+    }
+  }
 }
 #else
 enum SadhanaLiveActivity {
   static func start(beads: Int, cycle: Int) -> Bool { false }
   static func update(beads: Int, cycle: Int) {}
+  static func stop() {}
 }
 #endif

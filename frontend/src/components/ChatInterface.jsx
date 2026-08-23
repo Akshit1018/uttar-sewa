@@ -19,15 +19,15 @@ import ChannelSelector from './ChannelSelector';
 import { useChannels } from '../hooks/useChannels';
 import { shareCard } from '../lib/practice';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
 
-const ChatInterface = ({ language }) => {
+const ChatInterface = ({ language, stats: statsFromApp }) => {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [suggestedQuestions, setSuggestedQuestions] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [localStats, setLocalStats] = useState(null);
+  const stats = statsFromApp || localStats;
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [followUps, setFollowUps] = useState([]);
   const { channels, channelId, setChannelId } = useChannels();
@@ -129,7 +129,7 @@ const ChatInterface = ({ language }) => {
     try {
       const response = await fetch(`${API}/stats`);
       const data = await response.json();
-      setStats(data);
+      setLocalStats(data);
     } catch (error) {
       console.error('Error loading stats:', error);
     }
@@ -164,10 +164,7 @@ const ChatInterface = ({ language }) => {
       let data = [];
       
       if (!isOnline) {
-        const cached = getCachedResults(messageText);
-        if (cached) {
-          data = cached;
-        }
+        throw new Error('offline');
       }
 
       if (data.length === 0) {
@@ -255,9 +252,11 @@ const ChatInterface = ({ language }) => {
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: language === 'hi' 
+        content: error.message === 'offline'
+          ? (language === 'hi' ? 'ऑफ़लाइन हैं — जप चल सकता है, प्रश्न के लिए नेट चाहिए।' : 'You are offline. Japa still works; asking needs the network.')
+          : (language === 'hi'
           ? 'खुशी से खोज में कोई समस्या हुई। कृपया बाद में पुनः प्रयास करें।'
-          : 'Sorry, there was an issue with the search. Please try again later.',
+          : 'Sorry, there was an issue with the search. Please try again later.'),
         timestamp: new Date(),
         isError: true
       };
@@ -354,6 +353,7 @@ const ChatInterface = ({ language }) => {
                           onClick={() => handleFavoriteToggle(result)}
                           variant="ghost"
                           size="icon"
+                          aria-label={language === 'hi' ? 'पसंदीदा' : 'Favorite'}
                           className={`shrink-0 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
                         >
                           {isFavorite(result) ? (
@@ -391,7 +391,7 @@ const ChatInterface = ({ language }) => {
                         </Badge>
                         <Badge className="bg-green-500/20 text-green-400 text-xs px-2 py-1">
                           <Star className="w-3 h-3 mr-1" />
-                          {Math.round(result.confidence_score * 100)}%
+                          {Number.isFinite(Number(result.confidence_score)) ? `${Math.round(result.confidence_score * 100)}%` : '—'}
                         </Badge>
                       </div>
 
@@ -438,7 +438,7 @@ const ChatInterface = ({ language }) => {
               {language === 'hi' ? 'आध्यात्मिक सहायक' : 'Spiritual Assistant'}
             </h1>
             <p className="text-xs text-gray-400">
-              {language === 'hi' ? 'आपके प्रश्नों का उत्तर देने के लिए तैयार' : 'Ready to answer your questions'}
+              {language === 'hi' ? 'उत्तर केवल इंजेस्टेड प्रवचनों से उद्धृत होते हैं।' : 'Answers are copied from ingested discourses only.'}
             </p>
           </div>
           <div className="flex items-center gap-2 min-w-0">
@@ -451,6 +451,14 @@ const ChatInterface = ({ language }) => {
             <div className={`w-3 h-3 rounded-full shrink-0 ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
           </div>
         </div>
+
+        {stats && Number(stats.total_qa_pairs || 0) === 0 && (
+          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+            {language === 'hi'
+              ? 'संग्रह खाली है। प्रोसेसिंग से वीडियो इंजेस्ट करें — तब तक उत्तर नहीं मिलेंगे।'
+              : 'The corpus is empty. Ingest videos from Processing — questions will be refused until then.'}
+          </div>
+        )}
 
         {stats && (
           <div className="grid grid-cols-3 gap-2 mt-3">
@@ -567,6 +575,7 @@ const ChatInterface = ({ language }) => {
                 onClick={handleVoiceSearch}
                 variant="ghost"
                 size="icon"
+                aria-label={language === 'hi' ? 'बोलें' : 'Speak'}
                 className={`absolute right-1 top-1/2 transform -translate-y-1/2 ${
                   isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'
                 }`}
@@ -581,6 +590,7 @@ const ChatInterface = ({ language }) => {
             onClick={() => handleSendMessage()}
             disabled={loading || !query.trim()}
             size="icon"
+            aria-label={language === 'hi' ? 'भेजें' : 'Send'}
             className="bg-white text-black hover:bg-gray-100 rounded-xl transition-all duration-300 shrink-0"
           >
             {loading ? (

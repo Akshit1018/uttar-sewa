@@ -32,6 +32,12 @@ import UIKit
         result(nil)
       case "startWatchSession":
         result(SadhanaWatch.startSession())
+      case "stopLiveActivity":
+        SadhanaLiveActivity.stop()
+        result(nil)
+      case "stopWatchSession":
+        SadhanaWatch.stopSession()
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }

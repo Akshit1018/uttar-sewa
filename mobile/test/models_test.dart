@@ -84,4 +84,11 @@ void main() {
     expect(asInt('108', 11), 108);
     expect(asBool('true'), isTrue);
   });
+
+  test('mala day key rolls over across calendar days', () {
+    expect(malaDayKey(DateTime(2026, 8, 23)), '2026-08-23');
+    expect(malaNeedsRollover('2026-08-22', '2026-08-23'), isTrue);
+    expect(malaNeedsRollover('', '2026-08-23'), isFalse);
+    expect(malaNeedsRollover('2026-08-23', '2026-08-23'), isFalse);
+  });
 }

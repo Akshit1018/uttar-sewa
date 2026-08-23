@@ -20,8 +20,7 @@ import { useChannels } from '../hooks/useChannels';
 import PageShell from './Layout/PageShell';
 import { shareCard } from '../lib/practice';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
 
 const SearchInterface = ({ language }) => {
   const [query, setQuery] = useState('');
@@ -492,7 +491,7 @@ const SearchInterface = ({ language }) => {
                     </Badge>
                     <Badge className="bg-green-500/20 text-green-400 border-green-500/30 rounded-full px-3 py-1 text-xs">
                       <Star className="w-3 h-3 mr-1" />
-                      {Math.round(result.confidence_score * 100)}%
+                      {Number.isFinite(Number(result.confidence_score)) ? `${Math.round(result.confidence_score * 100)}%` : '—'}
                     </Badge>
                   </div>
                 </CardHeader>
