@@ -22,6 +22,8 @@ Statuses: DISCOVERED | VALIDATING | PLANNED | IN_PROGRESS | TESTING | BLOCKED | 
 | P3-VECTOR | Unused `embedding` field | P3 | DISCOVERED | Hybrid search only after extractive eval |
 | P4-ADS | Ads / streaks / leaderboards | P4 | REJECTED | Conflicts with sadhana product |
 
+Adversarial inspection (2026-08-23): see [`RED_TEAM_FINDINGS.md`](RED_TEAM_FINDINGS.md). Do not treat this backlog as complete.
+
 ## Completeness (honest)
 
 | Surface | State |

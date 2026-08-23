@@ -118,7 +118,7 @@ pip install -r backend/requirements.txt
 python -m pytest tests/ -q
 ```
 
-Product memory for future work lives in [`docs/product/`](docs/product/PRODUCT_VISION.md) (vision, graph, decisions, backlog, security). This is a spiritual Q&A + japa product — not a recruiting or resume system.
+Product memory lives in [`docs/product/`](docs/product/PRODUCT_VISION.md). Adversarial inspection: [`docs/product/RED_TEAM_FINDINGS.md`](docs/product/RED_TEAM_FINDINGS.md). This is a spiritual Q&A + japa product — not a recruiting or resume system.
 
 ## Why it exists
 

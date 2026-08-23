@@ -25,6 +25,14 @@ Research performed for this run. Dates relative to 2026-08-23.
 **ADOPT (already shipped):** mask on GET; empty PUT does not wipe; `__clear__` removes.  
 **BACKLOG:** encrypt `control_secrets` at rest.
 
+## 2026-08-23 red-team market pass
+
+`parallel-cli` was **not installed**. Used web search.
+
+- [NotebookLM / Gemini Notebook](https://notebooklm.google/) + [Tom’s Guide 27 Jun 2026](https://www.tomsguide.com/ai/i-turned-youtube-into-an-ai-bootcamp-with-notebooklm-heres-my-workflow): YouTube URL → transcript Q&A + citations. **ADOPT later:** time-to-value (paste URL). **REJECT:** unconstrained generation as our answer contract.
+- Mala: [Mantrum](https://mantrum.app/), [JapGuru](https://play.google.com/store/apps/details?hl=en_US&id=com.mantra.japguru) (Feb 2026 update), [Naam Jap](https://karmalive.org/mantra-jap-counter-app), [Japa Counter](https://apps.apple.com/in/app/japa-counter-mantra-tracker/id6757606346). **ADOPT:** reminders + offline-first. **REJECT:** leaderboards (product rule).
+- [GitaGPT + Chroma](https://github.com/aprameyak/GitaGPT): semantic RAG on a closed text. **BACKLOG:** embeddings after evals, not as a rewrite.
+
 ## Job-search / recruiting templates
 
 **REJECT:** This repository is a spiritual Q&A + mala product. Candidate-profile graphs do not apply.
