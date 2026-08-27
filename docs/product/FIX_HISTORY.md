@@ -117,3 +117,13 @@
 **Fix:** sealed `enc_v1` secrets; pin as seeker API + PWA sync; unique index failures stay unique; `$text` then regex; sliding-window rate limits; persist `channel_url` and resume pending jobs; PWA Settings keys + mala sync; control writes fail-closed off loopback when token unset.
 
 **Regression:** `tests/test_green_team_closeout.py`.
+
+## Cloudflare quick tunnel (same-origin PWA)
+
+**Symptom:** No public URL. Two hosts (CRA :3000 + API :8000) cannot share a trycloudflare link without CORS and a baked localhost API.
+
+**Root cause:** FastAPI never served `frontend/build`.
+
+**Fix:** `mount_built_pwa` after `/api`; `scripts/cloudflare_tunnel.sh` starts a Cloudflare quick tunnel to :8000.
+
+**Regression:** `tests/test_pwa_static.py`.

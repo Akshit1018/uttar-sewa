@@ -109,6 +109,19 @@ yarn install
 yarn start
 ```
 
+### Public demo (Cloudflare quick tunnel)
+
+One origin: build the PWA, then FastAPI serves `frontend/build` at `/` and `/api` beside it. Do **not** bake `REACT_APP_BACKEND_URL=http://127.0.0.1:8000` into that build — the PWA uses the page origin.
+
+```bash
+cd frontend && yarn install && yarn build
+python3 -m uvicorn backend.server:app --host 127.0.0.1 --port 8000
+# another terminal
+scripts/cloudflare_tunnel.sh
+```
+
+`cloudflared tunnel --url http://127.0.0.1:8000` prints an `https://*.trycloudflare.com` link. It dies when this process or VM stops. It is not a named Cloudflare hostname. Control writes stay loopback-only unless `CONTROL_TOKEN` is set.
+
 > `.env` files are git-ignored and **must not** be committed. Use `.env.example` as the template.
 
 ## Tests

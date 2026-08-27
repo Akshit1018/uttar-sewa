@@ -15,5 +15,6 @@ Closeout: `tests/test_green_team_closeout.py` (secrets, unique indexes, remote c
 | BYOK honesty | `test_gemini_is_optional_because_ask_does_not_call_it` |
 | Client contracts | `test_pwa_*`, `test_flutter_chat_and_orb_*` |
 | Prior P0/P1 | `test_hardening.py`, ingest re-replace, cloud fail-closed |
+| Same-origin PWA mount | `tests/test_pwa_static.py` |
 
 Flutter widget tests and browser journeys were **not** run (SDK / browser harness absent).

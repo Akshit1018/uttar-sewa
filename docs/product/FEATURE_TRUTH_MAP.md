@@ -48,6 +48,7 @@ Legend: REAL | PARTIAL | COSMETIC | MOCKED | BROKEN | HIDDEN | DEAD | DUPLICATE 
 | Accessibility | **PARTIAL** | Orb Semantics / aria-labels | Most cards unlabeled. **UNVERIFIED** with TalkBack. |
 | Notifications / sandhya | **PARTIAL** | PWA `notificationService` if permission; Flutter native none for sandhya | Easy to miss. |
 | Service worker | **UNVERIFIED** | Registered in `App.js` | May cache stale JS; not tested here. |
+| Public Cloudflare tunnel | **PARTIAL** | FastAPI serves `frontend/build`; `scripts/cloudflare_tunnel.sh` | One `trycloudflare.com` origin. Ephemeral. Not a named Cloudflare hostname. |
 
 ## Scores (implementation quality, not morale)
 

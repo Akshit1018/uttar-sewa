@@ -62,6 +62,7 @@ from backend.services.qa_corpus import (
 )
 from backend.services.rate_limit import LIMITER
 from backend.services.job_resume import jobs_to_resume
+from backend.services.pwa_static import default_pwa_build_dir, mount_built_pwa
 from backend.services.byok import (
     apply_env,
     memory_secrets,
@@ -1252,6 +1253,8 @@ async def sync_with_cloud(_auth: None = Depends(require_cloud)):
 
 # Include the router in the main app
 app.include_router(api_router)
+# Last: same-origin PWA when `frontend/build` exists (Cloudflare tunnel / LAN).
+mount_built_pwa(app, default_pwa_build_dir())
 
 _cors = [item.strip() for item in (os.environ.get("CORS_ORIGINS") or "").split(",") if item.strip()]
 if not _cors:

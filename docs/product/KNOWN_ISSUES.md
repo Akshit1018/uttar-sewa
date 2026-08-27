@@ -7,6 +7,7 @@
 - `openai-whisper` package and `WHISPER_AUDIO_DIR` audio files for caption-less videos
 - Android SDK / iOS toolchain — this Linux agent cannot `flutter build apk` or prove overlay/Watch
 - `CONTROL_TOKEN` must be set by the operator for any internet-exposed API
+- Cloudflare quick tunnel (`trycloudflare.com`) is ephemeral and dies with the VM; it is not a named hostname
 
 ## Product gaps still open
 

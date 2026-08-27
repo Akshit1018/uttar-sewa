@@ -19,3 +19,7 @@ Titles are timestamps + snippets. Gemini is not allowed to invent questions that
 ## Gemini/Mistral keys are optional leftovers
 
 YouTube is the ingest credential. Chat/Search do not call Gemini/Mistral. Required-key theater blocked “ready” without changing answers.
+
+## Same-origin PWA for a Cloudflare tunnel
+
+A public demo needs one URL. When `frontend/build/index.html` exists, FastAPI mounts that folder at `/` after `/api`. The PWA then calls `window.location.origin/api`. Two tunnels (CRA :3000 + API :8000) would break CORS and bake localhost. The quick tunnel (`trycloudflare.com`) is ephemeral and is not a production hostname.
