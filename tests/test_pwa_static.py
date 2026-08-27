@@ -65,3 +65,18 @@ def test_live_app_health_still_works_without_build():
     body = client.get("/api/health").json()
     assert "ok" in body
     assert body["ready"] == body["database"]
+
+
+def test_startup_does_not_hang_when_mongo_never_answers(monkeypatch):
+    import asyncio
+    import time
+
+    from backend import server
+
+    async def forever(*_args, **_kwargs):
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(server, "bootstrap_database", forever)
+    started = time.monotonic()
+    asyncio.run(server.startup_database())
+    assert time.monotonic() - started < 5

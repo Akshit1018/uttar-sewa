@@ -1276,15 +1276,20 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_database():
     try:
-        result = await bootstrap_database(db)
+        # Motor can hang past serverSelectionTimeoutMS when Mongo is down.
+        timeout_s = float(os.environ.get("STARTUP_MONGO_TIMEOUT_S") or 3)
+        result = await asyncio.wait_for(bootstrap_database(db), timeout=timeout_s)
         logger.info(f"database ready: {result}")
         stored = await _load_secrets()
         apply_env(resolve_all(stored))
         _reconfigure_services()
         try:
-            rows = await db.processing_status.find(
-                {"status": {"$in": ["pending", "processing"]}}
-            ).to_list(20)
+            rows = await asyncio.wait_for(
+                db.processing_status.find(
+                    {"status": {"$in": ["pending", "processing"]}}
+                ).to_list(20),
+                timeout=timeout_s,
+            )
             for job in jobs_to_resume(rows):
                 logger.info("resume_processing id=%s", job.get("id"))
                 asyncio.create_task(

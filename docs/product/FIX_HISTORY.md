@@ -127,3 +127,5 @@
 **Fix:** `mount_built_pwa` after `/api`; `scripts/cloudflare_tunnel.sh` starts a Cloudflare quick tunnel to :8000.
 
 **Regression:** `tests/test_pwa_static.py`.
+
+Startup no longer waits forever when Mongo is down (Motor can ignore `serverSelectionTimeoutMS`). `asyncio.wait_for` around bootstrap; `test_startup_does_not_hang_when_mongo_never_answers`.
