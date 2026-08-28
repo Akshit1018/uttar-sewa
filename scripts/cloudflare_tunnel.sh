@@ -38,4 +38,5 @@ if ! curl -sf "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
 fi
 
 echo "Opening Cloudflare quick tunnel to http://127.0.0.1:${PORT}"
-exec "$CLOUDFLARED_BIN" tunnel --no-autoupdate --url "http://127.0.0.1:${PORT}"
+# HTTP/2 survives this VM sleeping better than the default QUIC path.
+exec "$CLOUDFLARED_BIN" tunnel --no-autoupdate --protocol http2 --url "http://127.0.0.1:${PORT}"

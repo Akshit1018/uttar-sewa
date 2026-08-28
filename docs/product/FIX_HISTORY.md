@@ -129,3 +129,5 @@
 **Regression:** `tests/test_pwa_static.py`.
 
 Startup no longer waits forever when Mongo is down (Motor can ignore `serverSelectionTimeoutMS`). `asyncio.wait_for` around bootstrap; `test_startup_does_not_hang_when_mongo_never_answers`.
+
+Quick-tunnel script uses `--protocol http2`. Default QUIC died after this VM slept (`timeout: no recent network activity`) and the old `trycloudflare.com` hostname stopped resolving.
