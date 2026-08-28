@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Heart, Play, ExternalLink, Clock, Trash2, Share2, X } from 'lucide-react';
+import { Heart, Clock, Trash2, Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { useFavorites } from '../hooks/useFavorites';
 import { useToast } from '../hooks/use-toast';
 import { t } from '../utils/translations';
+import { formatTimestamp } from '../lib/youtube';
+import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
+import PageShell from './Layout/PageShell';
 
 const FavoritesPage = ({ language }) => {
   const { favorites, removeFromFavorites, clearFavorites, getFavoritesByCategory } = useFavorites();
@@ -24,6 +27,12 @@ const FavoritesPage = ({ language }) => {
   };
 
   const handleClearAll = () => {
+    const confirmed = window.confirm(
+      language === 'hi'
+        ? 'सभी स्थानीय पसंदीदा हट जाएँगे। आगे बढ़ें?'
+        : 'This removes all local favorites. Continue?'
+    );
+    if (!confirmed) return;
     clearFavorites();
     toast({
       title: language === 'hi' ? 'सभी पसंदीदा साफ किए गए' : 'All Favorites Cleared',
@@ -52,31 +61,6 @@ const FavoritesPage = ({ language }) => {
     }
   };
 
-  const formatTimestamp = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const openVideoAtTimestamp = (videoId, startTime) => {
-    const timestampUrl = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    
-    if (window.DeviceMotionEvent !== undefined) {
-      const youtubeAppUrl = `youtube://watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-      const link = document.createElement('a');
-      link.href = youtubeAppUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      setTimeout(() => {
-        window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-      }, 1000);
-    } else {
-      window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
-
   const getFilteredFavorites = () => {
     if (selectedCategory === 'all') {
       return favorites;
@@ -87,20 +71,34 @@ const FavoritesPage = ({ language }) => {
   const filteredFavorites = getFilteredFavorites();
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="px-4 py-8 sm:px-6">
+    <PageShell>
+      <div>
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-            <Heart className="w-6 h-6 text-red-400" />
-            {language === 'hi' ? 'पसंदीदा' : 'Favorites'}
-          </h1>
-          <p className="text-gray-400 text-sm">
-            {language === 'hi' 
-              ? `आपके ${favorites.length} पसंदीदा प्रश्न-उत्तर`
-              : `Your ${favorites.length} favorite Q&As`
-            }
-          </p>
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                <Heart className="w-6 h-6 text-red-400 shrink-0" />
+                {language === 'hi' ? 'पसंदीदा' : 'Favorites'}
+              </h1>
+              <p className="text-gray-400 text-sm">
+                {language === 'hi' 
+                  ? `आपके ${favorites.length} पसंदीदा प्रश्न-उत्तर`
+                  : `Your ${favorites.length} favorite Q&As`
+                }
+              </p>
+            </div>
+            {favorites.length > 0 && (
+              <Button
+                onClick={handleClearAll}
+                variant="outline"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10 w-full sm:w-auto"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {language === 'hi' ? 'सभी साफ करें' : 'Clear All'}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Category Filter */}
@@ -136,20 +134,6 @@ const FavoritesPage = ({ language }) => {
           </div>
         )}
 
-        {/* Clear All Button */}
-        {favorites.length > 0 && (
-          <div className="mb-6 flex justify-end">
-            <Button
-              onClick={handleClearAll}
-              variant="outline"
-              className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              {language === 'hi' ? 'सभी साफ करें' : 'Clear All'}
-            </Button>
-          </div>
-        )}
-
         {/* Favorites List */}
         {filteredFavorites.length > 0 ? (
           <div className="space-y-4">
@@ -163,20 +147,20 @@ const FavoritesPage = ({ language }) => {
                     <CardTitle className="text-white text-base leading-relaxed font-semibold flex-1 mr-4">
                       {favorite.question}
                     </CardTitle>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 shrink-0">
                       <Button
                         onClick={() => handleShare(favorite)}
                         variant="ghost"
-                        size="sm"
-                        className="text-gray-400 hover:text-white p-2"
+                        size="icon"
+                        className="text-gray-400 hover:text-white"
                       >
                         <Share2 className="w-4 h-4" />
                       </Button>
                       <Button
                         onClick={() => handleRemoveFavorite(favorite.id)}
                         variant="ghost"
-                        size="sm"
-                        className="text-red-400 hover:text-red-300 p-2"
+                        size="icon"
+                        className="text-red-400 hover:text-red-300"
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -184,7 +168,7 @@ const FavoritesPage = ({ language }) => {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
-                      {favorite.video_title.substring(0, 40)}...
+                      {(favorite.video_title || '').substring(0, 40)}...
                     </Badge>
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
                       <Clock className="w-3 h-3 mr-1" />
@@ -202,22 +186,19 @@ const FavoritesPage = ({ language }) => {
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                      onClick={() => openVideoAtTimestamp(favorite.video_id, favorite.start_time)}
+                    <VideoTimestampLink
+                      videoId={favorite.video_id}
+                      startTime={favorite.start_time}
+                      timestampUrl={favorite.timestamp_url}
+                      label={`${language === 'hi' ? 'वीडियो देखें' : 'Watch Video'} (${formatTimestamp(favorite.start_time)})`}
                       className="bg-white text-black hover:bg-gray-100 rounded-xl px-4 py-3 font-medium transition-colors duration-200 flex-1"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      {language === 'hi' ? 'वीडियो देखें' : 'Watch Video'} ({formatTimestamp(favorite.start_time)})
-                    </Button>
-                    
-                    <Button
-                      onClick={() => window.open(favorite.youtube_url, '_blank')}
-                      variant="outline"
+                    />
+                    <VideoHomeLink
+                      videoId={favorite.video_id}
+                      youtubeUrl={favorite.youtube_url}
+                      label={language === 'hi' ? 'पूरा वीडियो' : 'Full Video'}
                       className="border-white/20 text-gray-300 hover:bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      {language === 'hi' ? 'पूरा वीडियो' : 'Full Video'}
-                    </Button>
+                    />
                   </div>
 
                   <div className="mt-3 text-xs text-gray-500">
@@ -254,7 +235,7 @@ const FavoritesPage = ({ language }) => {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 

@@ -8,8 +8,10 @@ const LanguageToggle = ({ language, setLanguage }) => {
 
   return (
     <button
+      type="button"
       onClick={toggleLanguage}
-      className="flex items-center gap-2 p-2 text-white hover:bg-white/10 rounded-xl transition-all duration-200"
+      className="touch-target flex items-center justify-center gap-1.5 px-2.5 text-white hover:bg-white/10 rounded-xl transition-all duration-200 shrink-0"
+      aria-label={language === 'hi' ? 'Switch to English' : 'हिंदी में बदलें'}
     >
       <Globe className="w-4 h-4" />
       <span className="text-sm font-medium">

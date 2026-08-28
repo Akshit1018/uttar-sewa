@@ -2,7 +2,7 @@ export const translations = {
   hi: {
     // Header
     title: "आध्यात्मिक ज्ञान खोज",
-    subtitle: "900+ आध्यात्मिक वीडियो से तुरंत उत्तर पाएं",
+    subtitle: "इंजेस्टेड प्रवचनों से उद्धृत उत्तर",
     searchPlaceholder: "अपना आध्यात्मिक प्रश्न यहाँ लिखें...",
     searchButton: "खोजें",
     
@@ -29,12 +29,15 @@ export const translations = {
     
     // Suggested Questions
     suggestedQuestions: "सुझाए गए प्रश्न",
+    followUps: "आगे पूछें",
+    recommendations: "आपके लिए सुझाव",
+    channels: "चैनल",
     suggestedNote: "ये सुझाए गए प्रश्न आपकी खोज में मदद कर सकते हैं",
     
     // Processing
     processingTitle: "वीडियो प्रोसेसिंग स्थिति",
     startProcessing: "वीडियो प्रोसेसिंग शुरू करें",
-    startProcessingDesc: "सभी 900+ वीडियो को प्रोसेस करके Q&A डेटाबेस तैयार करें",
+    startProcessingDesc: "चैनल के इंजेस्ट होने वाले वीडियो से Q&A बनाएँ — संख्या संग्रह जितनी होगी",
     processingStarted: "प्रोसेसिंग शुरू हो गई",
     processingStartedDesc: "सभी वीडियो प्रोसेस होने में कुछ समय लगेगा",
     processingComplete: "प्रोसेसिंग पूरी हो गई! 🎉",
@@ -76,7 +79,7 @@ export const translations = {
   en: {
     // Header
     title: "Spiritual Knowledge Search",
-    subtitle: "Get instant answers from 900+ spiritual videos",
+    subtitle: "Extractive answers from ingested discourses only",
     searchPlaceholder: "Ask your spiritual question here...",
     searchButton: "Search",
     
@@ -103,12 +106,15 @@ export const translations = {
     
     // Suggested Questions
     suggestedQuestions: "Suggested Questions",
+    followUps: "Ask next",
+    recommendations: "Suggested for you",
+    channels: "Channels",
     suggestedNote: "These suggested questions can help with your search",
     
     // Processing
     processingTitle: "Video Processing Status",
     startProcessing: "Start Video Processing",
-    startProcessingDesc: "Process all 900+ videos to create Q&A database",
+    startProcessingDesc: "Build Q&A from videos that actually ingest — no 900+ claim",
     processingStarted: "Processing Started",
     processingStartedDesc: "All videos will take some time to process",
     processingComplete: "Processing Complete! 🎉",

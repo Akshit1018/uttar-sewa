@@ -11,7 +11,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Spiritual Search" />
+    <meta name="apple-mobile-web-app-title" content="उत्तर सेवा" />
     
     <!-- iOS Splash Screens -->
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -21,16 +21,13 @@
     <meta name="theme-color" content="#000000" />
     <meta name="mobile-web-app-capable" content="yes" />
     
-    <!-- Prevent zoom on iOS -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    
     <!-- Preconnect to external resources -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     
-    <title>Spiritual Knowledge Search - आध्यात्मिक ज्ञान खोज</title>
+    <title>उत्तर सेवा — Uttar Sewa</title>
     
     <style>
       /* Loading screen */
@@ -105,16 +102,6 @@
             });
         });
       }
-      
-      // Prevent zoom on double tap (iOS)
-      let lastTouchEnd = 0;
-      document.addEventListener('touchend', function (event) {
-        const now = (new Date()).getTime();
-        if (now - lastTouchEnd <= 300) {
-          event.preventDefault();
-        }
-        lastTouchEnd = now;
-      }, false);
     </script>
   </body>
 </html>

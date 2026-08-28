@@ -4,8 +4,10 @@ Handles proper video redirection with exact timestamp positioning
 """
 
 import logging
-from typing import Dict, Any, Optional
 import re
+from typing import Dict, Any, Optional
+
+from .timestamp_urls import build_watch_url, build_youtu_be_url, build_embed_url, normalize_start_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -17,32 +19,19 @@ class VideoTimestampService:
     
     def generate_timestamp_urls(self, video_id: str, start_time: float, end_time: Optional[float] = None) -> Dict[str, str]:
         """Generate different types of video URLs with timestamps"""
-        
-        start_seconds = int(start_time)
-        
+        start_seconds = normalize_start_seconds(start_time)
         urls = {
-            # Standard web URL with timestamp
-            'web_url': f"{self.youtube_base_url}?v={video_id}&t={start_seconds}s",
-            
-            # Mobile web URL with timestamp  
-            'mobile_web_url': f"{self.youtube_mobile_url}?v={video_id}&t={start_seconds}s",
-            
-            # YouTube app deep link
-            'app_url': f"{self.youtube_app_url}?v={video_id}&t={start_seconds}s",
-            
-            # Basic video URL without timestamp
+            'web_url': build_watch_url(video_id, start_seconds),
+            'mobile_web_url': f"{self.youtube_mobile_url}?v={video_id}&t={start_seconds}",
+            'app_url': f"{self.youtube_app_url}?v={video_id}&t={start_seconds}",
             'basic_url': f"{self.youtube_base_url}?v={video_id}",
-            
-            # Embed URL with autoplay and timestamp
-            'embed_url': f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&autoplay=1"
+            'embed_url': build_embed_url(video_id, start_seconds),
+            'short_url': build_youtu_be_url(video_id, start_seconds),
         }
-        
-        # Add end time if provided (for video segments)
         if end_time:
-            end_seconds = int(end_time)
-            urls['web_url_with_end'] = f"{self.youtube_base_url}?v={video_id}&t={start_seconds}s&end={end_seconds}s"
+            end_seconds = normalize_start_seconds(end_time)
+            urls['web_url_with_end'] = f"{self.youtube_base_url}?v={video_id}&t={start_seconds}&end={end_seconds}"
             urls['embed_url_with_end'] = f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&end={end_seconds}&autoplay=1"
-        
         return urls
     
     def generate_mobile_friendly_link(self, video_id: str, start_time: float) -> str:
@@ -51,7 +40,7 @@ class VideoTimestampService:
         
         # This will be handled in the frontend JavaScript
         # Returns the web URL, frontend will handle app detection
-        return f"{self.youtube_base_url}?v={video_id}&t={start_seconds}s"
+        return f"{self.youtube_base_url}?v={video_id}&t={start_seconds}"
     
     def format_timestamp_display(self, seconds: float) -> str:
         """Format timestamp for display (MM:SS or HH:MM:SS)"""
@@ -111,33 +100,8 @@ class VideoTimestampService:
         
         js_code = f"""
         function openVideoAtTimestamp() {{
-            const videoId = '{video_id}';
-            const startTime = {start_seconds};
-            
-            // Try to detect if we're on mobile
-            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isMobile) {{
-                // Try YouTube app first
-                const appUrl = `youtube://watch?v=${{videoId}}&t=${{startTime}}s`;
-                const webUrl = `https://www.youtube.com/watch?v=${{videoId}}&t=${{startTime}}s`;
-                
-                // Create hidden iframe to trigger app
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.src = appUrl;
-                document.body.appendChild(iframe);
-                
-                // Fallback to web after delay
-                setTimeout(() => {{
-                    window.open(webUrl, '_blank');
-                    document.body.removeChild(iframe);
-                }}, 1000);
-            }} else {{
-                // Desktop: open in new tab
-                const webUrl = `https://www.youtube.com/watch?v=${{videoId}}&t=${{startTime}}s`;
-                window.open(webUrl, '_blank', 'noopener,noreferrer');
-            }}
+            const webUrl = 'https://www.youtube.com/watch?v={video_id}&t={start_seconds}';
+            window.open(webUrl, '_blank', 'noopener,noreferrer');
         }}
         openVideoAtTimestamp();
         """

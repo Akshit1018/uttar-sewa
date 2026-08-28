@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Play, ExternalLink, Clock, Heart, HeartIcon, Mic, MicOff, Bot, User, Sparkles, Star } from 'lucide-react';
+import { Send, Loader2, Clock, Heart, HeartIcon, Mic, MicOff, Bot, User, Sparkles, Star, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
@@ -9,21 +9,34 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useSearchHistory } from '../hooks/useSearchHistory';
 import { useVoiceSearch } from '../hooks/useVoiceSearch';
 import { useOfflineStorage } from '../hooks/useOfflineStorage';
-import { useDebounce, usePerformanceMonitor } from '../hooks/usePerformance';
+import { usePerformanceMonitor } from '../hooks/usePerformance';
 import { notificationService } from '../services/notificationService';
 import { analyticsService } from '../services/analyticsService';
 import { t } from '../utils/translations';
+import { formatTimestamp } from '../lib/youtube';
+import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
+import ChannelSelector from './ChannelSelector';
+import { useChannels } from '../hooks/useChannels';
+import { shareCard } from '../lib/practice';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
+import { controlHeaders } from '../lib/control';
 
-const ChatInterface = ({ language }) => {
+const ChatInterface = ({ language, stats: statsFromApp, channels: channelsProp, channelId: channelIdProp, setChannelId: setChannelIdProp }) => {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [suggestedQuestions, setSuggestedQuestions] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [localStats, setLocalStats] = useState(null);
+  const stats = statsFromApp || localStats;
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [followUps, setFollowUps] = useState([]);
+  const [ingestUrl, setIngestUrl] = useState('');
+  const [ingesting, setIngesting] = useState(false);
+  const localChannels = useChannels();
+  const channels = channelsProp || localChannels.channels;
+  const channelId = channelIdProp ?? localChannels.channelId;
+  const setChannelId = setChannelIdProp || localChannels.setChannelId;
   
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -32,7 +45,7 @@ const ChatInterface = ({ language }) => {
   // Custom hooks
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const { addToHistory } = useSearchHistory();
-  const { isOnline, getCachedResults, cacheSearchResults } = useOfflineStorage();
+  const { isOnline, cacheSearchResults } = useOfflineStorage();
   const { measureSearchTime } = usePerformanceMonitor();
   
   // Voice search
@@ -48,6 +61,7 @@ const ChatInterface = ({ language }) => {
   useEffect(() => {
     loadSuggestedQuestions();
     loadStats();
+    loadRecommendations();
     analyticsService.trackPageView('chat');
     
     // Add welcome message
@@ -90,13 +104,80 @@ const ChatInterface = ({ language }) => {
     }
   };
 
+  const loadRecommendations = async () => {
+    try {
+      const history = JSON.parse(localStorage.getItem('spiritual_qa_search_history') || '[]');
+      const recentQueries = history.slice(0, 6).map((item) => item.query).filter(Boolean);
+      const response = await fetch(`${API}/recommendations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recent_queries: recentQueries,
+          language,
+          channel_id: channelId === 'all' ? null : channelId,
+          limit: 6,
+        }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (Array.isArray(data.recommendations) && data.recommendations.length > 0) {
+        setSuggestedQuestions((current) => {
+          const merged = [...data.recommendations, ...current];
+          return [...new Set(merged)].slice(0, 8);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+    }
+  };
+
   const loadStats = async () => {
     try {
       const response = await fetch(`${API}/stats`);
       const data = await response.json();
-      setStats(data);
+      setLocalStats(data);
     } catch (error) {
       console.error('Error loading stats:', error);
+    }
+  };
+
+  const handleIngestUrl = async () => {
+    const url = ingestUrl.trim();
+    if (!url) {
+      toast({
+        title: language === 'hi' ? 'URL दर्ज करें' : 'Enter a URL',
+        description: language === 'hi' ? 'YouTube वीडियो या चैनल का पता चिपकाएँ।' : 'Paste a YouTube video or channel address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIngesting(true);
+    try {
+      const response = await fetch(`${API}/process/from-url`, {
+        method: 'POST',
+        headers: controlHeaders(),
+        body: JSON.stringify({ url }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.detail || 'Ingest failed');
+      }
+      setIngestUrl('');
+      await loadStats();
+      toast({
+        title: language === 'hi' ? 'इंजेस्ट शुरू' : 'Ingest started',
+        description: language === 'hi'
+          ? 'प्रवचन जुड़ गए तो प्रश्न पूछें।'
+          : 'Ask again once the discourse is stored.',
+      });
+    } catch (error) {
+      toast({
+        title: language === 'hi' ? 'इंजेस्ट नहीं हुआ' : 'Ingest failed',
+        description: error.message || (language === 'hi' ? 'YouTube कुंजी या नेट देखें।' : 'Check the YouTube key or network.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIngesting(false);
     }
   };
 
@@ -129,29 +210,50 @@ const ChatInterface = ({ language }) => {
       let data = [];
       
       if (!isOnline) {
-        const cached = getCachedResults(messageText);
-        if (cached) {
-          data = cached;
-        }
+        throw new Error('offline');
       }
 
       if (data.length === 0) {
-        const response = await fetch(`${API}/search`, {
+        const response = await fetch(`${API}/ask`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             query: messageText,
-            limit: 3
+            limit: 3,
+            language,
+            conversation_history: messages
+              .filter((item) => item.type === 'user')
+              .slice(-4)
+              .map((item) => item.content),
+            channel_id: channelId === 'all' ? null : channelId,
+            include_companions: true,
           }),
         });
 
         if (!response.ok) {
-          throw new Error('Search failed');
+          throw new Error('Ask failed');
         }
 
-        data = await response.json();
+        const payload = await response.json();
+        data = (payload.clips || []).map((clip) => ({
+          question: clip.source_question || payload.answer,
+          answer: clip.source_answer || payload.answer,
+          video_id: clip.video_id,
+          video_title: clip.video_title,
+          start_time: clip.start_time,
+          timestamp_url: clip.timestamp_url,
+          youtube_url: clip.youtube_url,
+          confidence_score: clip.confidence_score,
+          related_questions: payload.related_questions || clip.related_questions || [],
+          citation_kind: clip.citation_kind,
+        }));
+        data.refused = !!payload.refused;
+        data.answer = payload.answer || '';
+        data.evidence_kind = payload.evidence_kind;
+        data.seed_only = !!payload.seed_only;
+        data.companions = payload.companions || [];
         
         // Cache results for offline use
         if (data.length > 0 && isOnline) {
@@ -167,21 +269,31 @@ const ChatInterface = ({ language }) => {
       // Track analytics
       analyticsService.trackSearch(messageText, language, data.length, searchTime);
 
+      const answerText = data.answer
+        || (data.length > 0 ? data[0].answer : '');
+      const refused = !!data.refused || data.length === 0;
+
       // Create bot response message
       const botMessage = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: data.length > 0 
-          ? `${language === 'hi' ? 'मिले' : 'Found'} ${data.length} ${language === 'hi' ? 'परिणाम' : 'results'}:`
-          : language === 'hi' 
-            ? 'खुशी से इस प्रश्न का उत्तर नहीं मिला। कृपया प्रश्न को दूसरे तरीके से पूछें।'
-            : 'I couldn\'t find an answer to this question. Please try rephrasing it.',
+        content: answerText
+          || (language === 'hi'
+            ? 'इस विषय पर संकलित प्रवचनों में स्पष्ट उत्तर नहीं मिला।'
+            : 'The collected discourses do not contain a clear answer to this.'),
         timestamp: new Date(),
         results: data,
+        refused,
+        seedOnly: !!data.seed_only,
+        evidenceKind: data.evidence_kind,
+        companions: data.companions || [],
         searchTime: Math.round(searchTime)
       };
 
       setMessages(prev => [...prev, botMessage]);
+
+      const related = (data[0] && data[0].related_questions) || [];
+      setFollowUps(related);
       
       if (data.length > 0) {
         notificationService.showSearchCompleteNotification(data.length, language);
@@ -194,9 +306,11 @@ const ChatInterface = ({ language }) => {
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: language === 'hi' 
+        content: error.message === 'offline'
+          ? (language === 'hi' ? 'ऑफ़लाइन हैं — जप चल सकता है, प्रश्न के लिए नेट चाहिए।' : 'You are offline. Japa still works; asking needs the network.')
+          : (language === 'hi'
           ? 'खुशी से खोज में कोई समस्या हुई। कृपया बाद में पुनः प्रयास करें।'
-          : 'Sorry, there was an issue with the search. Please try again later.',
+          : 'Sorry, there was an issue with the search. Please try again later.'),
         timestamp: new Date(),
         isError: true
       };
@@ -246,78 +360,12 @@ const ChatInterface = ({ language }) => {
     }
   };
 
-  const formatTimestamp = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const openVideoAtTimestamp = (videoId, startTime, mobileAppUrl = null) => {
-    const timestampUrl = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    const appUrl = mobileAppUrl || `youtube://watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    
-    analyticsService.trackVideoClick(videoId, startTime, 'chat_result');
-    
-    // Enhanced mobile detection and handling
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /Android/.test(navigator.userAgent);
-    
-    if (isMobile) {
-      // Try to open in YouTube app first
-      try {
-        // Create a hidden iframe to trigger the app
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = appUrl;
-        document.body.appendChild(iframe);
-        
-        // For iOS, also try the universal link
-        if (isIOS) {
-          const universalLink = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-          window.location.href = universalLink;
-        }
-        
-        // Clean up iframe after attempt
-        setTimeout(() => {
-          try {
-            document.body.removeChild(iframe);
-          } catch (e) {
-            // Iframe might already be removed
-          }
-        }, 1500);
-        
-        // Fallback to web version if app doesn't open
-        setTimeout(() => {
-          // Check if we're still on the same page (app didn't open)
-          if (document.hasFocus && document.hasFocus()) {
-            window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-          }
-        }, 1000);
-        
-      } catch (error) {
-        console.error('Error opening YouTube app:', error);
-        // Fallback to web
-        window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-      }
-    } else {
-      // Desktop: open in new tab
-      window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-    }
-    
-    // Show user feedback
-    toast({
-      title: language === 'hi' ? 'वीडियो खोली जा रही है' : 'Opening Video',
-      description: `${language === 'hi' ? 'समय:' : 'At:'} ${formatTimestamp(startTime)}`,
-    });
-  };
-
   const renderMessage = (message) => {
     const isUser = message.type === 'user';
     
     return (
       <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 fade-in`}>
-        <div className={`max-w-[80%] ${isUser ? 'order-2' : 'order-1'}`}>
+        <div className={`chat-bubble ${isUser ? 'order-2' : 'order-1'}`}>
           {/* Avatar */}
           <div className={`flex items-center gap-2 mb-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -339,24 +387,35 @@ const ChatInterface = ({ language }) => {
                 : 'glass-card'
           } rounded-2xl`}>
             <CardContent className="p-4">
-              <p className={`text-sm leading-relaxed ${isUser ? 'text-black' : 'text-white'}`}>
+              <p className={`text-sm leading-relaxed ${
+                isUser ? 'text-black' : message.refused ? 'text-amber-200' : 'text-white'
+              }`}>
                 {message.content}
               </p>
+              {message.seedOnly && (
+                <p className="mt-2 text-xs text-amber-200">
+                  {language === 'hi'
+                    ? 'यह बीज पुस्तकालय है, आपके गुरु का प्रवचन नहीं।'
+                    : 'This is the seed library, not your guru’s discourse.'}
+                </p>
+              )}
 
               {/* Search Results */}
               {message.results && message.results.length > 0 && (
                 <div className="mt-4 space-y-3">
                   {message.results.map((result, index) => (
-                    <div key={index} className="bg-white/5 rounded-xl p-3 border border-white/10">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="text-white text-sm font-medium leading-relaxed flex-1 mr-2">
+                    <div key={index} className="bg-white/5 rounded-xl p-3 border border-white/10 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="text-white text-sm font-medium leading-relaxed flex-1 min-w-0">
                           {result.question}
                         </h4>
+                        <div className="flex shrink-0">
                         <Button
                           onClick={() => handleFavoriteToggle(result)}
                           variant="ghost"
-                          size="sm"
-                          className={`p-1 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
+                          size="icon"
+                          aria-label={language === 'hi' ? 'पसंदीदा' : 'Favorite'}
+                          className={`shrink-0 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
                         >
                           {isFavorite(result) ? (
                             <Heart className="w-4 h-4 fill-current" />
@@ -364,6 +423,19 @@ const ChatInterface = ({ language }) => {
                             <HeartIcon className="w-4 h-4" />
                           )}
                         </Button>
+                        <Button
+                          onClick={() => shareCard({
+                            question: result.question,
+                            answer: result.answer,
+                            timestampUrl: result.timestamp_url,
+                          })}
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-gray-400 hover:text-white"
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </Button>
+                        </div>
                       </div>
 
                       <p className="text-gray-300 text-xs leading-relaxed mb-3">
@@ -372,7 +444,7 @@ const ChatInterface = ({ language }) => {
 
                       <div className="flex flex-wrap gap-2 mb-3">
                         <Badge className="bg-white/10 text-white text-xs px-2 py-1">
-                          {result.video_title.substring(0, 30)}...
+                          {(result.video_title || '').substring(0, 30)}...
                         </Badge>
                         <Badge className="bg-white/10 text-white text-xs px-2 py-1">
                           <Clock className="w-3 h-3 mr-1" />
@@ -380,31 +452,44 @@ const ChatInterface = ({ language }) => {
                         </Badge>
                         <Badge className="bg-green-500/20 text-green-400 text-xs px-2 py-1">
                           <Star className="w-3 h-3 mr-1" />
-                          {Math.round(result.confidence_score * 100)}%
+                          {Number.isFinite(Number(result.confidence_score)) ? `${Math.round(result.confidence_score * 100)}%` : '—'}
                         </Badge>
+                        {result.citation_kind === 'curated' && (
+                          <Badge className="bg-amber-500/20 text-amber-200 text-xs px-2 py-1">
+                            {language === 'hi' ? 'संग्रहित' : 'Curated'}
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => openVideoAtTimestamp(
-                            result.video_id, 
-                            result.start_time,
-                            result.mobile_app_url
-                          )}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <VideoTimestampLink
+                          videoId={result.video_id}
+                          startTime={result.start_time}
+                          timestampUrl={result.timestamp_url}
+                          label={formatTimestamp(result.start_time)}
                           className="bg-white text-black hover:bg-gray-100 text-xs px-3 py-2 h-auto flex-1"
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          {formatTimestamp(result.start_time)}
-                        </Button>
-                        <Button
-                          onClick={() => window.open(result.youtube_url, '_blank')}
-                          variant="outline"
+                        />
+                        <VideoHomeLink
+                          videoId={result.video_id}
+                          youtubeUrl={result.youtube_url}
+                          label=""
                           className="border-white/20 text-gray-300 hover:bg-white/10 text-xs px-3 py-2 h-auto"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </Button>
+                        />
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+
+              {message.companions && message.companions.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-gray-400">
+                    {language === 'hi' ? 'सार्वजनिक पाठ (वीडियो नहीं)' : 'Public texts (not videos)'}
+                  </p>
+                  {message.companions.slice(0, 3).map((card, index) => (
+                    <p key={`${card.title || card.source}-${index}`} className="text-xs text-gray-300 leading-relaxed">
+                      {(card.title || card.source || 'Companion')}: {(card.text || card.excerpt || '').slice(0, 180)}
+                    </p>
                   ))}
                 </div>
               )}
@@ -423,26 +508,67 @@ const ChatInterface = ({ language }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="chat-shell bg-black text-white flex flex-col overflow-hidden">
       {/* Header with Stats */}
-      <div className="flex-shrink-0 px-4 py-4 border-b border-white/10 glass-card">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-white">
+      <div className="flex-shrink-0 px-3 py-3 sm:px-4 sm:py-4 border-b border-white/10 glass-card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold text-white">
               {language === 'hi' ? 'आध्यात्मिक सहायक' : 'Spiritual Assistant'}
             </h1>
             <p className="text-xs text-gray-400">
-              {language === 'hi' ? 'आपके प्रश्नों का उत्तर देने के लिए तैयार' : 'Ready to answer your questions'}
+              {language === 'hi' ? 'उत्तर केवल इंजेस्टेड प्रवचनों से उद्धृत होते हैं।' : 'Answers are copied from ingested discourses only.'}
             </p>
           </div>
-          <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+          <div className="flex items-center gap-2 min-w-0">
+            <ChannelSelector
+              language={language}
+              channelId={channelId}
+              setChannelId={setChannelId}
+              channels={channels}
+            />
+            <div className={`w-3 h-3 rounded-full shrink-0 ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+          </div>
         </div>
+
+        {stats && Number(stats.ingested_qa || 0) === 0 && (
+          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100 space-y-2">
+            <p>
+              {language === 'hi'
+                ? Number(stats.curated_qa || 0) > 0
+                  ? 'अभी केवल बीज पुस्तकालय है। अपना प्रवचन जोड़ने के लिए YouTube URL चिपकाएँ।'
+                  : 'संग्रह खाली है। अपना पहला प्रवचन जोड़ने के लिए YouTube URL चिपकाएँ।'
+                : Number(stats.curated_qa || 0) > 0
+                  ? 'Only the seed library is present. Paste a YouTube URL to add a real discourse.'
+                  : 'The corpus is empty. Paste a YouTube URL to add the first discourse.'}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="url"
+                value={ingestUrl}
+                onChange={(event) => setIngestUrl(event.target.value)}
+                placeholder="https://www.youtube.com/watch?v=…"
+                className="bg-black/30 border-amber-500/30 text-white placeholder-amber-100/50"
+                aria-label={language === 'hi' ? 'YouTube पता' : 'YouTube URL'}
+              />
+              <Button
+                onClick={handleIngestUrl}
+                disabled={ingesting}
+                className="bg-white text-black hover:bg-gray-100"
+              >
+                {ingesting
+                  ? (language === 'hi' ? 'जोड़ रहे हैं…' : 'Adding…')
+                  : (language === 'hi' ? 'जोड़ें' : 'Add')}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {stats && (
           <div className="grid grid-cols-3 gap-2 mt-3">
             {[
-              { value: stats.total_videos, label: t('totalVideos', language) },
-              { value: stats.total_qa_pairs, label: t('qaTotal', language) },
+              { value: stats.ingested_qa ?? 0, label: language === 'hi' ? 'इंजेस्टेड' : 'Ingested' },
+              { value: stats.curated_qa ?? 0, label: language === 'hi' ? 'बीज' : 'Seed' },
               { value: stats.processed_videos, label: t('processedVideos', language) }
             ].map((stat, index) => (
               <div key={index} className="text-center">
@@ -455,12 +581,12 @@ const ChatInterface = ({ language }) => {
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 custom-scrollbar">
         {messages.map(renderMessage)}
         
         {loading && (
           <div className="flex justify-start mb-4">
-            <div className="max-w-[80%]">
+            <div className="chat-bubble">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
                   <Bot className="w-4 h-4" />
@@ -495,7 +621,7 @@ const ChatInterface = ({ language }) => {
               {t('suggestedQuestions', language)}
             </span>
           </div>
-          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+          <div className="chip-scroll">
             {suggestedQuestions.slice(0, 6).map((question, index) => (
               <button
                 key={index}
@@ -509,10 +635,33 @@ const ChatInterface = ({ language }) => {
         </div>
       )}
 
+      {/* Follow-up questions */}
+      {!showSuggestions && followUps.length > 0 && !loading && (
+        <div className="flex-shrink-0 px-4 py-2 border-t border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-white" />
+            <span className="text-sm font-medium text-white">
+              {t('followUps', language)}
+            </span>
+          </div>
+          <div className="chip-scroll">
+            {followUps.map((question, index) => (
+              <button
+                key={`${question}-${index}`}
+                onClick={() => handleSuggestedQuestionClick(question)}
+                className="flex-shrink-0 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs text-gray-300 hover:text-white transition-colors border border-white/10"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
-      <div className="flex-shrink-0 p-4 border-t border-white/10 glass-card">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 relative">
+      <div className="flex-shrink-0 chat-composer border-t border-white/10 glass-card">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex-1 relative min-w-0">
             <Input
               ref={inputRef}
               type="text"
@@ -529,7 +678,9 @@ const ChatInterface = ({ language }) => {
               <Button
                 onClick={handleVoiceSearch}
                 variant="ghost"
-                className={`absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 p-0 ${
+                size="icon"
+                aria-label={language === 'hi' ? 'बोलें' : 'Speak'}
+                className={`absolute right-1 top-1/2 transform -translate-y-1/2 ${
                   isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'
                 }`}
                 disabled={loading}
@@ -542,7 +693,9 @@ const ChatInterface = ({ language }) => {
           <Button
             onClick={() => handleSendMessage()}
             disabled={loading || !query.trim()}
-            className="bg-white text-black hover:bg-gray-100 w-12 h-12 p-0 rounded-xl transition-all duration-300"
+            size="icon"
+            aria-label={language === 'hi' ? 'भेजें' : 'Send'}
+            className="bg-white text-black hover:bg-gray-100 rounded-xl transition-all duration-300 shrink-0"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

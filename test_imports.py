@@ -1,20 +1,30 @@
 #!/usr/bin/env python3
 import sys
-import os
+from pathlib import Path
 
-# Add the app directory to the Python path
-sys.path.insert(0, '/app')
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 try:
-    # Try to import the models
-    from backend.models import VideoModel
+    from backend.models import VideoModel, SearchQuery
     print("Successfully imported VideoModel from backend.models")
-except Exception as e:
-    print(f"Error importing VideoModel: {str(e)}")
+    print(
+        "SearchQuery includes conversation_history:",
+        "conversation_history" in SearchQuery.model_fields,
+    )
+except Exception as error:
+    print(f"Error importing models: {error}")
 
 try:
-    # Try to import the services
     from backend.services.processing_service import ProcessingService
-    print("Successfully imported ProcessingService from backend.services.processing_service")
-except Exception as e:
-    print(f"Error importing ProcessingService: {str(e)}")
+    print("Successfully imported ProcessingService")
+except Exception as error:
+    print(f"Error importing ProcessingService: {error}")
+
+try:
+    from backend.services.relevance_search import rank_answers, expand_query
+    print("Successfully imported relevance_search")
+    print("Follow-up expansion:", expand_query("why?", ["What is karma?"]))
+except Exception as error:
+    print(f"Error importing relevance_search: {error}")

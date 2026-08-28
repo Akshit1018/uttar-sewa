@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Play, ExternalLink, Clock, Sparkles, AlertCircle, Heart, HeartIcon, Mic, MicOff, History, Zap, Star, TrendingUp } from 'lucide-react';
+import { Search, Loader2, Play, Clock, Sparkles, AlertCircle, Heart, HeartIcon, Mic, MicOff, History, Zap, Star, TrendingUp, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -13,9 +13,14 @@ import { useDebounce, usePerformanceMonitor } from '../hooks/usePerformance';
 import { notificationService } from '../services/notificationService';
 import { analyticsService } from '../services/analyticsService';
 import { t } from '../utils/translations';
+import { formatTimestamp } from '../lib/youtube';
+import { VideoTimestampLink, VideoHomeLink } from './VideoTimestampLink';
+import ChannelSelector from './ChannelSelector';
+import { useChannels } from '../hooks/useChannels';
+import PageShell from './Layout/PageShell';
+import { shareCard } from '../lib/practice';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
 
 const SearchInterface = ({ language }) => {
   const [query, setQuery] = useState('');
@@ -26,6 +31,7 @@ const SearchInterface = ({ language }) => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showVoiceSearch, setShowVoiceSearch] = useState(false);
+  const { channels, channelId, setChannelId } = useChannels();
   
   const searchInputRef = useRef(null);
   const { toast } = useToast();
@@ -149,7 +155,9 @@ const SearchInterface = ({ language }) => {
           },
           body: JSON.stringify({
             query: searchQuery,
-            limit: 5
+            limit: 5,
+            language,
+            channel_id: channelId === 'all' ? null : channelId,
           }),
         });
 
@@ -245,113 +253,51 @@ const SearchInterface = ({ language }) => {
     }
   };
 
-  const formatTimestamp = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const openVideoAtTimestamp = (videoId, startTime, title = '') => {
-    // Create the timestamp URL
-    const timestampUrl = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-    
-    // Log analytics
-    analyticsService.trackVideoClick(videoId, startTime, 'search_result');
-    
-    // Show loading toast
-    toast({
-      title: "Opening Video",
-      description: `Opening "${title}" at ${formatTimestamp(startTime)}`,
-      duration: 2000,
-    });
-    
-    // Detect mobile vs desktop
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
-    if (isMobile) {
-      // Mobile: Try app first, then fallback to web
-      const appUrl = `youtube://watch?v=${videoId}&t=${Math.floor(startTime)}s`;
-      
-      try {
-        // For iOS, use window.location for better app detection
-        if (isIOS) {
-          window.location.href = appUrl;
-          
-          // Fallback to web after short delay if app doesn't open
-          setTimeout(() => {
-            // Check if we're still on the same page (app didn't open)
-            if (document.hasFocus()) {
-              window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-            }
-          }, 1500);
-        } else {
-          // Android: Try intent first
-          const intentUrl = `intent://watch?v=${videoId}&t=${Math.floor(startTime)}s#Intent;package=com.google.android.youtube;scheme=https;launchFlags=0x10000000;S.browser_fallback_url=${encodeURIComponent(timestampUrl)};end`;
-          
-          // Try the intent
-          window.location.href = intentUrl;
-          
-          // Fallback for older Android versions
-          setTimeout(() => {
-            if (document.hasFocus()) {
-              window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-            }
-          }, 1000);
-        }
-      } catch (error) {
-        console.error('Error opening mobile app:', error);
-        // Direct fallback to web
-        window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-      }
-    } else {
-      // Desktop: Direct web opening
-      window.open(timestampUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
   const getRecentHistory = () => getRecentSearches(5);
   const getPopularHistory = () => getPopularSearches(5);
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Hero Section - Mobile Optimized */}
-      <div className="px-4 py-8 sm:px-6 sm:py-12 relative">
-        {/* Online/Offline Indicator */}
-        <div className="absolute top-4 right-4">
-          <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}>
+    <PageShell>
+      <div className="relative">
+        <div className="flex items-center justify-end gap-2 mb-4">
+          <ChannelSelector
+            language={language}
+            channelId={channelId}
+            setChannelId={setChannelId}
+            channels={channels}
+          />
+          <div className={`w-3 h-3 rounded-full shrink-0 ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}>
           </div>
         </div>
 
-        {/* Stats Cards - Mobile Stack */}
         {stats && (
-          <div className="grid grid-cols-3 gap-3 mb-8 sm:gap-4 fade-in">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 fade-in">
             {[
               { value: stats.total_videos, label: t('totalVideos', language), color: 'from-blue-500/20 to-blue-500/5', icon: Play },
-              { value: stats.total_qa_pairs, label: t('qaTotal', language), color: 'from-green-500/20 to-green-500/5', icon: Sparkles },
+              { value: stats.ingested_qa ?? stats.total_qa_pairs, label: language === 'hi' ? 'इंजेस्टेड' : 'Ingested', color: 'from-green-500/20 to-green-500/5', icon: Sparkles },
               { value: stats.processed_videos, label: t('processedVideos', language), color: 'from-purple-500/20 to-purple-500/5', icon: Zap }
             ].map((stat, index) => {
               const IconComponent = stat.icon;
               return (
-                <div key={index} className="glass-card rounded-2xl p-4 text-center glass-card-hover">
+                <div key={index} className="glass-card rounded-2xl p-3 sm:p-4 text-center glass-card-hover min-w-0">
                   <div className="flex items-center justify-center mb-2">
                     <IconComponent className="w-4 h-4 text-white/70" />
                   </div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">
+                  <div className="text-lg sm:text-2xl font-bold text-white">
                     {stat.value}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-400 mt-1">{stat.label}</div>
+                  <div className="text-[10px] sm:text-sm text-gray-400 mt-1 leading-tight">{stat.label}</div>
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Enhanced Search Bar */}
         <div className="relative zoom-in">
-          <div className="relative group">
-            <div className="glass-strong rounded-2xl p-1 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center ml-2">
+          <div className="glass-strong rounded-2xl p-2 shadow-2xl">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
                   <Search className="w-5 h-5 text-gray-400" />
                 </div>
                 <Input
@@ -362,33 +308,32 @@ const SearchInterface = ({ language }) => {
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   onFocus={() => query.length === 0 && setShowHistory(true)}
-                  className="flex-1 bg-transparent border-none text-base text-white placeholder-gray-400 focus:outline-none focus:ring-0 p-0 h-12 focus-ring"
+                  className="flex-1 min-w-0 bg-transparent border-none text-base text-white placeholder-gray-400 focus:outline-none focus:ring-0 p-0 h-11 focus-ring"
                 />
-                
-                {/* Voice Search Button */}
+              </div>
+              <div className="flex items-center gap-2 justify-end">
                 {voiceSupported && (
                   <Button
                     onClick={handleVoiceSearch}
                     variant="ghost"
-                    className={`h-12 w-12 p-0 ${isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'}`}
+                    size="icon"
+                    className={isListening ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10'}
                   >
                     {isListening ? <MicOff className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
                   </Button>
                 )}
-
-                {/* History Button */}
                 <Button
                   onClick={() => setShowHistory(!showHistory)}
                   variant="ghost"
-                  className="h-12 w-12 p-0 hover:bg-white/10"
+                  size="icon"
+                  className="hover:bg-white/10"
                 >
                   <History className="w-5 h-5" />
                 </Button>
-
                 <Button
                   onClick={() => handleSearch()}
                   disabled={loading}
-                  className="h-12 px-6 bg-white text-black hover:bg-gray-100 font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 btn-mobile"
+                  className="h-11 px-4 sm:px-6 bg-white text-black hover:bg-gray-100 font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 btn-mobile"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -430,7 +375,7 @@ const SearchInterface = ({ language }) => {
                       <button
                         key={item.id}
                         onClick={() => handleHistoryClick(item)}
-                        className="w-full text-left p-2 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors"
+                        className="touch-target w-full text-left p-3 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors"
                       >
                         {item.query}
                         <span className="text-xs text-gray-500 ml-2">
@@ -453,7 +398,7 @@ const SearchInterface = ({ language }) => {
                       <button
                         key={index}
                         onClick={() => handleHistoryClick({ query: item.query })}
-                        className="w-full text-left p-2 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors flex items-center justify-between"
+                        className="touch-target w-full text-left p-3 rounded-lg hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-colors flex items-center justify-between"
                       >
                         <span>{item.query}</span>
                         <Badge variant="secondary" className="bg-white/20 text-white text-xs">
@@ -490,7 +435,7 @@ const SearchInterface = ({ language }) => {
       </div>
 
       {/* Main Content */}
-      <div className="px-4 pb-6 sm:px-6">
+      <div className="mt-6">
         {/* Results Section */}
         {results.length > 0 && (
           <div className="space-y-4 mb-8 fade-in">
@@ -509,11 +454,12 @@ const SearchInterface = ({ language }) => {
                     <CardTitle className="text-white text-base leading-relaxed font-semibold flex-1 mr-4">
                       {result.question}
                     </CardTitle>
+                    <div className="flex shrink-0">
                     <Button
                       onClick={() => handleFavoriteToggle(result)}
                       variant="ghost"
-                      size="sm"
-                      className={`p-2 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
+                      size="icon"
+                      className={`shrink-0 ${isFavorite(result) ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
                     >
                       {isFavorite(result) ? (
                         <Heart className="w-5 h-5 fill-current" />
@@ -521,10 +467,23 @@ const SearchInterface = ({ language }) => {
                         <HeartIcon className="w-5 h-5" />
                       )}
                     </Button>
+                    <Button
+                      onClick={() => shareCard({
+                        question: result.question,
+                        answer: result.answer,
+                        timestampUrl: result.timestamp_url,
+                      })}
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-gray-400 hover:text-white"
+                    >
+                      <Share2 className="w-5 h-5" />
+                    </Button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
-                      {result.video_title.substring(0, 40)}...
+                      {(result.video_title || '').substring(0, 40)}...
                     </Badge>
                     <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1 text-xs">
                       <Clock className="w-3 h-3 mr-1" />
@@ -532,7 +491,7 @@ const SearchInterface = ({ language }) => {
                     </Badge>
                     <Badge className="bg-green-500/20 text-green-400 border-green-500/30 rounded-full px-3 py-1 text-xs">
                       <Star className="w-3 h-3 mr-1" />
-                      {Math.round(result.confidence_score * 100)}%
+                      {Number.isFinite(Number(result.confidence_score)) ? `${Math.round(result.confidence_score * 100)}%` : '—'}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -542,22 +501,19 @@ const SearchInterface = ({ language }) => {
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                      onClick={() => openVideoAtTimestamp(result.video_id, result.start_time, result.video_title)}
+                    <VideoTimestampLink
+                      videoId={result.video_id}
+                      startTime={result.start_time}
+                      timestampUrl={result.timestamp_url}
+                      label={`${t('watchVideo', language)} (${formatTimestamp(result.start_time)})`}
                       className="bg-white text-black hover:bg-gray-100 rounded-xl px-4 py-3 font-medium transition-colors duration-200 flex-1 btn-mobile"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      {t('watchVideo', language)} ({formatTimestamp(result.start_time)})
-                    </Button>
-                    
-                    <Button
-                      onClick={() => window.open(result.youtube_url, '_blank')}
-                      variant="outline"
+                    />
+                    <VideoHomeLink
+                      videoId={result.video_id}
+                      youtubeUrl={result.youtube_url}
+                      label={t('fullVideo', language)}
                       className="border-white/20 text-gray-300 hover:bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm btn-mobile"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      {t('fullVideo', language)}
-                    </Button>
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -592,7 +548,7 @@ const SearchInterface = ({ language }) => {
                 <button
                   key={index}
                   onClick={() => handleSuggestedQuestionClick(question)}
-                  className="w-full text-left p-4 rounded-xl glass-card hover:bg-white/10 text-gray-300 hover:text-white transition-all duration-200 text-sm leading-relaxed glass-hover interactive"
+                  className="touch-target w-full text-left p-4 rounded-xl glass-card hover:bg-white/10 text-gray-300 hover:text-white transition-all duration-200 text-sm leading-relaxed glass-hover interactive"
                 >
                   {question}
                 </button>
@@ -601,7 +557,7 @@ const SearchInterface = ({ language }) => {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 

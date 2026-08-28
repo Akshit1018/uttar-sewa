@@ -1,41 +1,145 @@
 # Uttar Sewa
 
-**AI service platform — AI intake, service diagnosis, and provider matching.**
+**Spiritual Q&A from video discourses — ask in Hindi or English, jump to the exact timestamp.**
 
-Uttar Sewa ("Northern Service") is a Python/FastAPI service platform that takes a user's request, diagnoses what service they need, and matches them to the right provider. Built as a two-sided service layer (customer intake ↔ provider matching).
+Uttar Sewa ("Northern Service") is a Flutter + FastAPI app. Answers come only from processed YouTube transcripts. Each answer cites the source video and opens at the matching moment.
+
+The **control dashboard** in the Flutter app talks to `/api/control/*` and the MongoDB database `uttar_sewa`.
+
+## What it does
+
+- **Chat and search** — conversational Q&A with follow-ups, or a classic search page
+- **Grounded ask** — answers only from the video corpus, with timestamp citations
+- **Japa mala orb** — tap a bead; 11 / 27 / 54 / 108 completes a mala; hold 2.5s to ask
+- **Sadhana** — named malas (Ram Ram, Hare Krishna, Om), daily counts synced to the API
+- **Control dashboard** — library stats, mala settings, pin clips, start/clear processing, public scrape
+- **Public companions** — Gita verse, Wikipedia, dictionary, Open Library, sandhya times (labeled, never mixed into the video answer)
+- **Timestamp links** — real YouTube watch URLs (`watch?v=…&t=seconds`)
+- **Channel groups** — filter by topic (bhakti, meditation, philosophy, peace)
+- **Web PWA** — the React client in `frontend/` still works for browsers
 
 ## Architecture
 
-- **Backend** — Python, FastAPI (`app_server.py` + `backend/`)
-- **Frontend** — frontend app (see `frontend/`)
-- **Tests** — `tests/`, `backend_test.py`, `test_imports.py`
+```
+mobile/                          Flutter client (chat, search, sadhana, control)
+frontend/                        React PWA (optional web client)
+app_server.py / run_backend.py   FastAPI entry (imports backend.server)
+backend/server.py                API routes
+backend/db_schema.py             Mongo collections + indexes
+backend/services/database.py     bootstrap indexes + seed curated Q&A
+backend/services/control_store.py control dashboard payload / settings
+backend/services/public_enrichment.py  Gita/Wikipedia/dictionary/sandhya/Open Library + Scrapling fetch
+backend/spiritual_qa_content.py  curated Q&A fallback when the DB is empty
+tests/                           unit + API tests (Mongo optional)
+```
 
-```
-app_server.py        FastAPI entrypoint
-backend/             core service logic (intake, diagnosis, matching)
-frontend/            frontend app
-tests/               test suite
-run_backend.py       runner helper
-```
+## Database
+
+MongoDB database name: **`uttar_sewa`**.
+
+On API startup, `bootstrap_database` creates indexes and seeds curated Q&A if `question_answers` is empty.
+
+| Collection | Purpose |
+|---|---|
+| `videos` | YouTube metadata + `transcript_processed` |
+| `transcript_segments` | timed captions |
+| `question_answers` | searchable Q&A with citations |
+| `processing_status` | ingest jobs |
+| `control_settings` | dashboard toggles (one doc, `_id: app`) |
+| `pinned_qa` | clips pinned from the app |
+| `mala_days` | per-device daily japa sync |
+| `control_secrets` | bring-your-own API keys (cleartext in Mongo; GET never returns the full secret) |
+
+Set `MONGO_URL` (default `mongodb://localhost:27017`) and `DB_NAME` (default `uttar_sewa`). If Mongo is down, the API still serves search from the curated library and returns default control settings.
+
+You can also paste YouTube, Gemini, and Mistral keys in the app (**Settings → Bring your keys**). User keys override `.env` and take effect without a restart. GET `/api/control/keys` never returns the full secret.
+
+If the API is reachable on a network, set `CONTROL_TOKEN` and the same value under **Settings → Control token**. When the variable is empty, ordinary control writes stay open for local demo. **Cloud backup / restore / sync always require a token** (fail closed even if `CONTROL_TOKEN` is unset).
+
+## Control API
+
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/api/health` | API + database ping |
+| GET | `/api/control/dashboard` | stats + current controls |
+| GET/PUT | `/api/control/settings` | language, mala cycle, sandhya, processing |
+| GET/PUT | `/api/control/keys` | bring-your-own API keys (masked on read; live reconfigure). If `CONTROL_TOKEN` is set, requires `X-Control-Token` |
+| POST | `/api/process/ingest` | fill library from videos / video_ids / channel |
+| POST | `/api/control/qa/pin` | pin a cited clip |
+| GET | `/api/control/qa/pinned` | list pinned clips |
+| GET | `/api/control/library/gaps` | unprocessed videos |
+| POST | `/api/mala/sync` | persist today's mala |
+| GET | `/api/mala/day` | load today's mala |
+| POST | `/api/process/start` | start ingest (disabled if processing is off) |
+| POST | `/api/process/clear` | clear ingest status |
+| GET | `/api/enrich/catalog` | public-apis sources used by the app |
+| GET | `/api/enrich/today` | daily Gita verse + Varanasi sunrise/sunset |
+| POST | `/api/enrich/companions` | corrective-RAG public cards for a question |
+| POST | `/api/control/scrape` | Scrapling/httpx fetch of an allowlisted public page |
+| POST | `/api/control/enrich/video` | YouTube oEmbed metadata |
+
+Public companions come from [public-apis](https://github.com/public-apis/public-apis). HTML fetch uses [Scrapling](https://github.com/D4Vinci/Scrapling) when that package and its extras are installed; otherwise httpx. The companion cards follow the corrective-RAG pattern from [awesome-llm-apps](https://github.com/Shubhamsaboo/awesome-llm-apps): extra sources are graded and labeled, and they **never** replace a video citation.
 
 ## Run locally
 
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r backend/requirements.txt
-cp backend/.env.example backend/.env                 # fill in your keys
-python run_backend.py
+cp backend/.env.example backend/.env                 # optional fallback keys; or paste them in Settings
+uvicorn backend.server:app --reload --port 8000
 ```
 
-> ⚠️ `.env` files are git-ignored and **must not** be committed. Use `.env.example` as the template.
+### Flutter app
+
+```bash
+cd mobile
+flutter create . --project-name uttar_sewa --org sewa.uttar
+flutter pub get
+flutter run --dart-define=API_BASE=http://127.0.0.1:8000/api
+```
+
+Android emulator: use `http://10.0.2.2:8000/api` as `API_BASE`. On a physical phone, `127.0.0.1` is the phone itself — set **Settings → API URL** to the computer's LAN address (saved in SharedPreferences).
+
+### Web PWA (optional)
+
+```bash
+cd frontend
+cp .env.example .env                                 # set REACT_APP_BACKEND_URL
+yarn install
+yarn start
+```
+
+### Public demo (Cloudflare quick tunnel)
+
+One origin: build the PWA, then FastAPI serves `frontend/build` at `/` and `/api` beside it. Do **not** bake `REACT_APP_BACKEND_URL=http://127.0.0.1:8000` into that build — the PWA uses the page origin.
+
+```bash
+cd frontend && yarn install && yarn build
+python3 -m uvicorn backend.server:app --host 127.0.0.1 --port 8000
+# another terminal
+scripts/cloudflare_tunnel.sh
+```
+
+`cloudflared tunnel --url http://127.0.0.1:8000` prints an `https://*.trycloudflare.com` link. It dies when this process or VM stops. It is not a named Cloudflare hostname. Control writes stay loopback-only unless `CONTROL_TOKEN` is set.
+
+> `.env` files are git-ignored and **must not** be committed. Use `.env.example` as the template.
+
+## Tests
+
+```bash
+pip install -r backend/requirements.txt
+python -m pytest tests/ -q
+```
+
+Product memory lives in [`docs/product/`](docs/product/PRODUCT_VISION.md). Adversarial inspection: [`docs/product/RED_TEAM_FINDINGS.md`](docs/product/RED_TEAM_FINDINGS.md). This is a spiritual Q&A + japa product — not a recruiting or resume system.
 
 ## Why it exists
 
-Service businesses (legal, accounting, notary, consulting) lose leads at the intake step — the customer can't articulate what they need, and the business can't triage fast enough. Uttar Sewa puts an AI layer in front of intake: diagnose the need, then route to the right provider. Same pattern I deployed for an accounting-firm two-sided marketplace.
+Seekers ask the same questions that already live in long discourse videos. Uttar Sewa turns those videos into searchable Q&A with a clickable timestamp, instead of making people scrub through hours of footage.
 
 ## Status
 
-Working backend + frontend. Configuration and client-specific data abstracted for open-source release.
+Flutter client + control API + Mongo bootstrap are in this release. Chat and the japa orb use grounded `/api/ask` (refuse when evidence is thin). Japa increments locally so a bead still counts offline, then syncs. Ingest upserts extractive transcript Q&A first, then drops stale rows (a crash does not empty a video). Public scrape does not follow redirects. Optional `CONTROL_TOKEN` gates write/admin routes; cloud backup/restore always fail closed. The PWA never fetches `undefined/api`. Caption-less videos can use local Whisper audio (`WHISPER_AUDIO_DIR`). Native overlay / Live Activity / Watch channels exist and can be toggled off; device proof is still required on a phone. The curated library is used when the database is empty. Copy no longer claims “900+ videos” or that AI invents teaching.
 
 ## License
 

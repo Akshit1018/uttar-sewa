@@ -12,15 +12,24 @@ import ProfilePage from "./components/Pages/ProfilePage";
 import AboutPage from "./components/Pages/AboutPage";
 import TermsPage from "./components/Pages/TermsPage";
 import SettingsPage from "./components/Pages/SettingsPage";
+import SadhanaDashboard from "./components/SadhanaDashboard";
+import JapaOrb from "./components/JapaOrb";
+import JapaChatSheet from "./components/JapaChatSheet";
+import { useMala } from "./hooks/useMala";
 import { analyticsService } from "./services/analyticsService";
+import { msUntil, nextSandhya, readPractice, readSettings } from "./lib/practice";
+import { notificationService } from "./services/notificationService";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from './lib/backend';
+import { useChannels } from './hooks/useChannels';
 
 const MainApp = () => {
   const [currentView, setCurrentView] = useState('chat');
   const [stats, setStats] = useState(null);
   const [language, setLanguage] = useState('hi'); // Default to Hindi as requested
+  const [chatOpen, setChatOpen] = useState(false);
+  const { state: malaState, tap, undo, recordQuestion, practice, reload } = useMala(language);
+  const { channels, channelId, setChannelId } = useChannels();
 
   useEffect(() => {
     loadStats();
@@ -50,13 +59,9 @@ const MainApp = () => {
         });
     }
 
-    // Handle app install prompt
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      // You can show install button here
-    });
+    if (readSettings().notifications || readPractice().sandhya) {
+      notificationService.requestPermission();
+    }
 
     // Performance monitoring
     if (window.performance && window.performance.timing) {
@@ -77,6 +82,31 @@ const MainApp = () => {
     localStorage.setItem('previousLanguage', language);
   }, [language]);
 
+  useEffect(() => {
+    let sentinel;
+    const lock = async () => {
+      if (!practice.japaFocus || !navigator.wakeLock) return;
+      try {
+        sentinel = await navigator.wakeLock.request('screen');
+      } catch (error) {
+        // unsupported or battery saver
+      }
+    };
+    lock();
+    return () => {
+      if (sentinel) sentinel.release();
+    };
+  }, [practice.japaFocus]);
+
+  useEffect(() => {
+    if (!practice.sandhya) return undefined;
+    const upcoming = nextSandhya();
+    const timer = setTimeout(() => {
+      notificationService.showSandhyaNotification(upcoming.kind, language);
+    }, msUntil(upcoming.at));
+    return () => clearTimeout(timer);
+  }, [practice.sandhya, language]);
+
   const loadStats = async () => {
     try {
       const response = await fetch(`${API}/stats`);
@@ -96,7 +126,9 @@ const MainApp = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'chat':
-        return <ChatInterface language={language} />;
+        return <ChatInterface language={language} stats={stats} channels={channels} channelId={channelId} setChannelId={setChannelId} />;
+      case 'sadhana':
+        return <SadhanaDashboard language={language} state={malaState} onPracticeChange={reload} />;
       case 'search':
         return <SearchInterface language={language} />;
       case 'processing':
@@ -106,15 +138,15 @@ const MainApp = () => {
       case 'admin':
         return <AdminDashboard language={language} />;
       case 'profile':
-        return <ProfilePage language={language} />;
+        return <ProfilePage language={language} setCurrentView={setCurrentView} />;
       case 'about':
-        return <AboutPage language={language} />;
+        return <AboutPage language={language} stats={stats} />;
       case 'terms':
         return <TermsPage language={language} />;
       case 'settings':
         return <SettingsPage language={language} setLanguage={setLanguage} />;
       default:
-        return <ChatInterface language={language} />;
+        return <ChatInterface language={language} stats={stats} channels={channels} channelId={channelId} setChannelId={setChannelId} />;
     }
   };
 
@@ -126,10 +158,21 @@ const MainApp = () => {
       setLanguage={setLanguage}
     >
       {renderCurrentView()}
-      {/* Fix notification positioning - move below header with proper z-index */}
-      <div className="fixed top-16 left-0 right-0 z-30 pointer-events-none">
-        <Toaster />
-      </div>
+      <JapaOrb
+        language={language}
+        state={malaState}
+        onTap={tap}
+        onHold={() => setChatOpen(true)}
+        onUndo={undo}
+      />
+      <JapaChatSheet
+        language={language}
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        onAsked={recordQuestion}
+        channelId={channelId}
+      />
+      <Toaster />
     </AppLayout>
   );
 };

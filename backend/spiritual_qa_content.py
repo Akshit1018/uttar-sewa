@@ -3,11 +3,6 @@ Manual Q&A Content for Spiritual Videos
 This file contains manually curated Q&A pairs for videos that don't have captions.
 """
 
-"""
-Manual Q&A Content for Spiritual Videos
-This file contains manually curated Q&A pairs for videos that don't have captions.
-"""
-
 # Expanded spiritual Q&A pairs in Hindi/English for comprehensive testing
 SPIRITUAL_QA_LIBRARY = [
     # Guru and Spiritual Guidance

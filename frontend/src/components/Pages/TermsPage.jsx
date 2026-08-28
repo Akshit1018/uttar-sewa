@@ -1,6 +1,7 @@
 import React from 'react';
 import { FileText, Shield, Eye, Heart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import PageShell from '../Layout/PageShell';
 
 const TermsPage = ({ language }) => {
   const sections = [
@@ -35,8 +36,8 @@ const TermsPage = ({ language }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="px-4 py-8 sm:px-6">
+    <PageShell>
+      <div>
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -92,7 +93,7 @@ const TermsPage = ({ language }) => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

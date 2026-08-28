@@ -6,9 +6,10 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '../hooks/use-toast';
 import { analyticsService } from '../services/analyticsService';
+import PageShell from './Layout/PageShell';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API } from '../lib/backend';
+import { controlHeaders } from '../lib/control';
 
 const AdminDashboard = ({ language }) => {
   const [stats, setStats] = useState(null);
@@ -57,7 +58,7 @@ const AdminDashboard = ({ language }) => {
 
   const handleClearProcessingStatus = async () => {
     try {
-      const response = await fetch(`${API}/process/clear`, { method: 'POST' });
+      const response = await fetch(`${API}/process/clear`, { method: 'POST', headers: controlHeaders() });
       if (response.ok) {
         toast({
           title: language === 'hi' ? 'प्रोसेसिंग स्थिति साफ की गई' : 'Processing Status Cleared',
@@ -99,24 +100,26 @@ const AdminDashboard = ({ language }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p>{language === 'hi' ? 'डैशबोर्ड लोड हो रहा है...' : 'Loading Dashboard...'}</p>
+      <PageShell wide>
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
+            <p>{language === 'hi' ? 'डैशबोर्ड लोड हो रहा है...' : 'Loading Dashboard...'}</p>
+          </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="px-4 py-8 sm:px-6">
+    <PageShell wide>
+      <div>
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                <BarChart3 className="w-6 h-6" />
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 shrink-0" />
                 {language === 'hi' ? 'एडमिन डैशबोर्ड' : 'Admin Dashboard'}
               </h1>
               <p className="text-gray-400 text-sm">
@@ -126,7 +129,7 @@ const AdminDashboard = ({ language }) => {
             <Button
               onClick={loadDashboardData}
               variant="outline"
-              className="border-white/20 text-gray-300 hover:bg-white/10"
+              className="border-white/20 text-gray-300 hover:bg-white/10 w-full sm:w-auto"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               {language === 'hi' ? 'रिफ्रेश' : 'Refresh'}
@@ -135,7 +138,7 @@ const AdminDashboard = ({ language }) => {
         </div>
 
         {/* System Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
           {stats && [
             {
               title: language === 'hi' ? 'कुल वीडियो' : 'Total Videos',
@@ -183,7 +186,7 @@ const AdminDashboard = ({ language }) => {
 
         {/* System Status */}
         {systemStatus && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
             <Card className="glass-card rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -291,7 +294,7 @@ const AdminDashboard = ({ language }) => {
 
         {/* Analytics Section */}
         {analyticsData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
             <Card className="glass-card rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -371,7 +374,7 @@ const AdminDashboard = ({ language }) => {
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 pt-4">
                   <Button
                     onClick={handleExportAnalytics}
                     variant="outline"
@@ -404,6 +407,22 @@ const AdminDashboard = ({ language }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
+              {systemStatus && systemStatus.database.unprocessed_videos > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-white font-medium text-sm">
+                      {language === 'hi' ? 'कैप्शन रहित कतार' : 'Missing-caption queue'}
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      {language === 'hi'
+                        ? `${systemStatus.database.unprocessed_videos} वीडियो अभी उद्धृत नहीं हो सकते। कैप्शन या बाद में Whisper से ट्रांसक्रिप्ट चाहिए।`
+                        : `${systemStatus.database.unprocessed_videos} videos cannot be cited yet. They need captions or later Whisper transcripts.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {stats && stats.processed_videos === 0 && (
                 <div className="flex items-center gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                   <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
@@ -455,7 +474,7 @@ const AdminDashboard = ({ language }) => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

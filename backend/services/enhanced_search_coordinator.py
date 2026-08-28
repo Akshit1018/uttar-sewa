@@ -286,8 +286,8 @@ class EnhancedSearchCoordinator:
                 
                 # Ensure required fields
                 enhanced_result.setdefault('confidence_score', result.get('combined_score', result.get('strategy_confidence', 0.8)))
-                enhanced_result.setdefault('youtube_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}")
-                enhanced_result.setdefault('timestamp_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}&t={int(result.get('start_time', 0))}s")
+                enhanced_result.setdefault('youtube_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}" if result.get('video_id') else "")
+                enhanced_result.setdefault('timestamp_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}&t={int(result.get('start_time', 0))}" if result.get('video_id') else "")
                 
                 enhanced_results.append(enhanced_result)
                 
@@ -295,8 +295,8 @@ class EnhancedSearchCoordinator:
                 logger.error(f"Error enhancing result metadata: {str(e)}")
                 # Add basic metadata
                 result.setdefault('confidence_score', 0.7)
-                result.setdefault('youtube_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}")
-                result.setdefault('timestamp_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}&t={int(result.get('start_time', 0))}s")
+                result.setdefault('youtube_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}" if result.get('video_id') else "")
+                result.setdefault('timestamp_url', f"https://www.youtube.com/watch?v={result.get('video_id', '')}&t={int(result.get('start_time', 0))}" if result.get('video_id') else "")
                 enhanced_results.append(result)
         
         return enhanced_results

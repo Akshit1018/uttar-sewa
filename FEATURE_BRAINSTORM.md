@@ -8,6 +8,14 @@
 - Default language set to Hindi
 - Conversational flow with continuous Q&A capability
 - Custom YouTube channel processing added
+- Timestamp links are real YouTube URLs (`t=seconds`) instead of popup/iframe hacks
+- Lexical relevance ranking with Hindi/English synonyms (works without LLM keys)
+- Chat memory expands follow-ups like "और कैसे?" from the previous question
+- Channel-group filter (bhakti, meditation, philosophy, peace)
+- Personalized recommendations from recent search history
+- README aligned with the actual Spiritual Q&A product
+
+✅ **All 7 Enhancement Phases Completed:**
 
 ✅ **All 7 Enhancement Phases Completed:**
 1. Advanced UI/UX with animations and glass morphism
@@ -259,9 +267,11 @@ This platform could become the **"Google for Spiritual Knowledge"** - the first 
 The current application has already achieved MVP status with enterprise-grade features. The above roadmap provides a clear path for evolution into a comprehensive spiritual knowledge platform that could serve millions of seekers worldwide.
 
 **Next Immediate Actions:**
-1. Implement multi-channel processing system
-2. Enhance chat interface with memory
-3. Add visual/audio search capabilities
-4. Begin social features development
+1. Grounded `/ask` — answer only from video chunks, with timestamp citations, refuse when the corpus has nothing
+2. In-app japa orb — tap = bead (108 = one mala), hold 2–3s = chat + voice
+3. Audio transcription for videos without captions (otherwise citations cannot be real)
+4. Native shell later — Android overlay; iOS Live Activity / Watch (iOS cannot draw over other apps)
+
+See `docs/superpowers/specs/2026-08-12-grounded-sadhana-companion-design.md` for the full product brainstorm.
 
 The foundation is solid, the vision is clear, and the potential is limitless! 🚀✨
